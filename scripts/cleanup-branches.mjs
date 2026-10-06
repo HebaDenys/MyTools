@@ -12,6 +12,17 @@ export function candidates({ repository, defaultBranch, branches, open, closed }
     return pr ? [{ branch: branch.name, head: pr.head.sha, merge: pr.merge_commit_sha, pr: pr.number }] : [];
   });
 }
+/** Bounded Git diagnostics, with both token representations and auth headers removed. */
+export function safeGitDiagnostic(result, token) {
+  let text = String(result.stderr ?? '');
+  for (const secret of [token, Buffer.from(`x-access-token:${token}`).toString('base64'), encodeURIComponent(token ?? '')]) {
+    if (secret) text = text.split(secret).join('[REDACTED]');
+  }
+  text = text.replace(/(authorization[^:]*:)[^\r\n]*/gi, '$1 [REDACTED]')
+    .replace(/https?:\/\/[^\s/]*@/g, 'https://[REDACTED]@')
+    .replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '');
+  return `Git deletion exit=${Number.isInteger(result.status) ? result.status : 'none'}; ${text.trim().slice(0, 1800) || 'No stderr.'}`;
+}
 export async function cleanup(env = process.env) {
   const repository = 'HebaDenys/MyTools';
   if (env.GITHUB_REPOSITORY !== repository || env.GITHUB_REF !== 'refs/heads/main' || !['push', 'workflow_dispatch'].includes(env.GITHUB_EVENT_NAME) || !env.GH_TOKEN) throw new Error('UNAUTHORIZED_CONTEXT');
@@ -52,7 +63,7 @@ export async function cleanup(env = process.env) {
       GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
       GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${env.GH_TOKEN}`).toString('base64')}`,
     });
-    if (result.status !== 0) throw new Error(`BRANCH_DELETE_FAILED_PR_${item.pr}`);
+    if (result.status !== 0) { console.error(safeGitDiagnostic(result, env.GH_TOKEN)); throw new Error(`BRANCH_DELETE_FAILED_PR_${item.pr}`); }
     console.log(`Deleted merged branch ${item.branch} (PR #${item.pr}, ${item.head}).`); deleted++;
   }
   console.log(`Deleted ${deleted} verified merged branches; other branches retained.`);
