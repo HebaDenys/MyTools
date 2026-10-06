@@ -3,7 +3,7 @@
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { extname } from 'node:path';
-import { LIMITS, parseData, emptyRecipe, readRecipe, runRecipe, profile, reconcile, exportCSV, exportJSON, readMapping, applySchemaMapping, planSchemaMapping } from './core.mjs';
+import { LIMITS, parseData, emptyRecipe, readRecipe, runRecipe, profile, reconcile, exportCSV, exportJSON, readMapping, applySchemaMapping, planSchemaMapping, validationDiagnostic } from './core.mjs';
 async function readBounded(path, limit = LIMITS.bytes) {
   const info = await stat(path);
   if (!info.isFile() || info.size > limit) throw new Error('INPUT_TOO_LARGE_OR_NOT_A_FILE');
@@ -11,13 +11,15 @@ async function readBounded(path, limit = LIMITS.bytes) {
   if (bytes.length > limit) throw new Error('INPUT_TOO_LARGE');
   try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch { throw new Error('UTF8_REQUIRED'); }
 }
+let diagnosticsJson = false;
 try {
   const { values, positionals } = parseArgs({ allowPositionals: true, options: {
     recipe: { type: 'string' }, mapping: { type: 'string' }, compare: { type: 'string' }, key: { type: 'string', multiple: true },
-    output: { type: 'string' }, report: { type: 'string' }, delimiter: { type: 'string' }, help: { type: 'boolean' },
+    output: { type: 'string' }, report: { type: 'string' }, delimiter: { type: 'string' }, help: { type: 'boolean' }, 'diagnostics-json': { type: 'boolean' },
   } });
+  diagnosticsJson = values['diagnostics-json'] === true;
   if (values.help) {
-    console.log('TrueFlow: node projects/trueflow/cli.mjs input.csv [--recipe recipe.json] [--compare after.csv --key id --mapping mapping.json] [--output cleaned.csv|cleaned.json] [--report report.json] [--delimiter comma|semicolon|tab]\nRepeat --key for composite keys. Mapping aligns original B headers to A before the same recipe applies to both inputs; no columns are silently discarded. UTF-8 only. Existing files are never overwritten. Default stdout is a diagnostic report without cell values. CSV guards alter formula-like cells; JSON preserves cell text. Private personal use is free; business/professional use requires a paid license.');
+    console.log('TrueFlow: node projects/trueflow/cli.mjs input.csv [--recipe recipe.json] [--compare after.csv --key id --mapping mapping.json] [--output cleaned.csv|cleaned.json] [--report report.json] [--delimiter comma|semicolon|tab] [--diagnostics-json]\nOn failure --diagnostics-json writes a value-free error object to stdout (exit 1); validation failures do not write output/report files. I/O failures can leave a completed first output. Repeat --key for composite keys. Mapping aligns original B headers to A before the same recipe applies to both inputs; no columns are silently discarded. UTF-8 only. Existing files are never overwritten. Default stdout is a diagnostic report without cell values. CSV guards alter formula-like cells; JSON preserves cell text. Private personal use is free; business/professional use requires a paid license.');
   } else {
     if (positionals.length !== 1) throw new Error('ONE_INPUT_REQUIRED');
     if (values.compare && !values.key?.length) throw new Error('COMPARISON_KEY_REQUIRED');
@@ -32,8 +34,8 @@ try {
     const recipe = values.recipe ? readRecipe(await readBounded(values.recipe, 65536)) : emptyRecipe();
     const originalA = await load(positionals[0]), originalB = values.compare ? await load(values.compare) : null;
     const mapping = values.mapping ? readMapping(await readBounded(values.mapping, 65536)) : null;
-    const a = runRecipe(originalA, recipe);
-    const b = originalB ? runRecipe(mapping ? applySchemaMapping(originalA, originalB, mapping) : originalB, recipe) : null;
+    const a = runRecipe(originalA, recipe, 'a');
+    const b = originalB ? runRecipe(mapping ? applySchemaMapping(originalA, originalB, mapping) : originalB, recipe, 'b') : null;
     const report = { format: 'mytools.trueflow.report', version: 1, a: { profile: profile(a.data), journal: a.journal }, b: b ? { profile: profile(b.data), journal: b.journal } : null, comparison: b ? reconcile(a.data, b.data, values.key) : null };
     if (mapping) report.schemaMapping = planSchemaMapping(originalA, originalB, mapping);
     let output;
@@ -59,5 +61,7 @@ try {
 } catch (error) {
   // Runtime filesystem messages may contain sensitive paths. Print only stable codes.
   const message = /^[A-Z][A-Z0-9_]+(?:: record \d+)?$/.test(error.message) ? error.message : error.code ?? 'OPERATION_FAILED';
+  const diagnostic = validationDiagnostic(error);
+  if (diagnosticsJson) process.stdout.write(JSON.stringify({ error: message, ...(diagnostic ? { diagnostic } : {}) }) + '\n');
   console.error(`TrueFlow: ${message}`); process.exitCode = 1;
 }

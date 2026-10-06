@@ -2,11 +2,12 @@
 // Copyright 2026 Denys Heba. Shared contracts for MCP and the loopback API.
 import { scrub, CATEGORIES } from '../../packages/truescrub/index.mjs';
 import { formatJson, encodeBase64, decodeBase64, cleanLink, deduplicateLines, textStats, generatePassword, sha256 } from '../../packages/essentials/index.mjs';
-import { parseData, profile, emptyRecipe, runRecipe, reconcile, exportCSV, exportJSON, applySchemaMapping } from '../../projects/trueflow/core.mjs';
+import { parseData, profile, emptyRecipe, runRecipe, reconcile, exportCSV, exportJSON, applySchemaMapping, validationDiagnostic } from '../../projects/trueflow/core.mjs';
 export const MESSAGE_LIMIT = 2 * 1024 * 1024;
 export const RESULT_LIMIT = 512 * 1024;
 export const LICENSE_NOTICE = 'Private personal use is free. Business/professional use requires a paid license from Denys Heba. See LICENSE and COMMERCIAL.md.';
-export class ToolError extends Error { constructor(code) { super(code); this.code = code; } }
+const toolDiagnostics = new WeakMap();
+export class ToolError extends Error { constructor(code, diagnostic = null) { super(code); this.code = code; if (diagnostic) toolDiagnostics.set(this, structuredClone(diagnostic)); } }
 const fail = code => { throw new ToolError(code); };
 const str = maxLength => ({ type: 'string', maxLength });
 const choice = (...values) => ({ type: 'string', enum: values });
@@ -42,7 +43,7 @@ const entries = [
   ['trueflow_compare', 'Optionally map original B headers to A before the same recipe and unique-key comparison. All columns must match one-to-one; no fuzzy matching. Return counts/locations, not cell values.', obj({ before: dataset, after: dataset, keys: columns, recipe, mapping }, ['before', 'after', 'keys']), a => {
     const before = parse(a.before), after = parse(a.after);
     const aligned = a.mapping === undefined ? after : applySchemaMapping(before, after, a.mapping);
-    return reconcile(runRecipe(before, a.recipe ?? emptyRecipe()).data, runRecipe(aligned, a.recipe ?? emptyRecipe()).data, a.keys);
+    return reconcile(runRecipe(before, a.recipe ?? emptyRecipe(), 'a').data, runRecipe(aligned, a.recipe ?? emptyRecipe(), 'b').data, a.keys);
   }],
 ];
 const registry = new Map(entries.map(([name, description, inputSchema, run]) => [name, { name, description, inputSchema, run }]));
@@ -72,16 +73,31 @@ export async function callTool(name, args = {}) {
     return result;
   } catch (error) {
     if (error instanceof ToolError) throw error;
+    const diagnostic = validationDiagnostic(error);
+    if (diagnostic) throw new ToolError(error.message, diagnostic);
     // Never return parser exception text: it may contain source data.
     const safe = /^(?:CSV_WIDTH|CSV_UNCLOSED_QUOTE|CSV_UNEXPECTED_QUOTE|CSV_AFTER_QUOTE|DUPLICATE_KEY|EMPTY_KEY|SCHEMA_MISMATCH|SCHEMA_UNMAPPED|INVALID_SCHEMA_MAPPING|AMBIGUOUS_SCHEMA_MAPPING|UNKNOWN_MAPPING_COLUMN|REQUIRED_VALUE|UNKNOWN_COLUMN|DUPLICATE_COLUMN_NAME|INVALID_JSON|DUPLICATE_JSON_KEY|FLAT_JSON_REQUIRED|TABLE_LIMIT|INPUT_TOO_LARGE|CSV_HEADER_COLLISION)(?:: record \d+)?$/;
     fail(safe.test(error.message) ? error.message : 'INVALID_DATA');
   }
 }
+export function toolFailure(error) {
+  if (!(error instanceof ToolError)) return { error: 'OPERATION_FAILED' };
+  const diagnostic = toolDiagnostics.get(error);
+  return { error: error.code, ...(diagnostic ? { diagnostic: structuredClone(diagnostic) } : {}) };
+}
+const recordNumber = { type: 'integer', minimum: 1, maximum: Number.MAX_SAFE_INTEGER };
+const nullableRecord = { oneOf: [{ const: null }, recordNumber] };
+const validationSchema = obj({
+  format: { const: 'mytools.trueflow.validation' }, version: { const: 1 }, source: choice('input', 'a', 'b'), check: choice('unique', 'require'),
+  step: { oneOf: [{ const: null }, { type: 'integer', minimum: 1, maximum: 30 }] },
+  totalIssues: { type: 'integer', minimum: 1, maximum: 50000 }, truncated: { type: 'boolean' },
+  issues: array(obj({ code: choice('EMPTY_KEY', 'DUPLICATE_KEY', 'REQUIRED_VALUE'), record: recordNumber, firstRecord: nullableRecord, columns: array({ type: 'integer', minimum: 1, maximum: 100 }, 100, 1) }), 100, 1),
+});
 export function openApi() {
   const paths = {
     '/v1/tools': { get: { operationId: 'listTools', responses: { 200: { description: 'Tool catalog with input schemas' } } } },
     '/openapi.json': { get: { operationId: 'openApi', responses: { 200: { description: 'This OpenAPI contract' } } } },
   };
-  for (const tool of listTools()) paths[`/v1/tools/${tool.name}`] = { post: { operationId: tool.name, description: tool.description, requestBody: { required: true, content: { 'application/json': { schema: tool.inputSchema } } }, responses: { 200: { description: 'JSON tool result in result; no automatic persistence' }, 400: { description: 'Invalid arguments/JSON' }, 401: { description: 'Missing or invalid bearer token' }, 403: { description: 'Origin/Host rejected' }, 413: { description: 'Request too large' }, 422: { description: 'Data/output rejected without source values' } } } };
-  return { openapi: '3.1.0', info: { title: 'MyTools local API', version: '1.0.0', description: LICENSE_NOTICE }, servers: [{ url: 'http://127.0.0.1:4174' }], security: [{ bearerAuth: [] }], components: { securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer' } } }, paths };
+  for (const tool of listTools()) paths[`/v1/tools/${tool.name}`] = { post: { operationId: tool.name, description: tool.description, requestBody: { required: true, content: { 'application/json': { schema: tool.inputSchema } } }, responses: { 200: { description: 'JSON tool result in result; no automatic persistence' }, 400: { description: 'Invalid arguments/JSON' }, 401: { description: 'Missing or invalid bearer token' }, 403: { description: 'Origin/Host rejected' }, 413: { description: 'Request too large' }, 422: { description: 'Data/output rejected without source values; selected TrueFlow gates include bounded diagnostic locations', content: { 'application/json': { schema: { type: 'object', required: ['error'], additionalProperties: false, properties: { error: { type: 'string' }, diagnostic: { $ref: '#/components/schemas/TrueFlowValidation' } } } } } } } } };
+  return { openapi: '3.1.0', info: { title: 'MyTools local API', version: '1.0.0', description: LICENSE_NOTICE }, servers: [{ url: 'http://127.0.0.1:4174' }], security: [{ bearerAuth: [] }], components: { schemas: { TrueFlowValidation: validationSchema }, securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer' } } }, paths };
 }

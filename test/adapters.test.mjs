@@ -148,3 +148,29 @@ test('mapping schema is closed in discovery and actual invocation', async () => 
   assert.equal(schema.additionalProperties, false); assert.equal(schema.properties.columns.items.additionalProperties, false);
   await assert.rejects(callTool('trueflow_compare', { ...mappedArgs, mapping: { ...mappedArgs.mapping, path: '/private' } }), /INVALID_ARGUMENTS/);
 });
+
+test('real MCP and HTTP expose the same bounded conflict diagnostics, never values/headers', async t => {
+  const fixtures = [
+    ['trueflow_compare', { before: { text: 'PRIVATE_HEADER\nx' }, after: { text: 'PRIVATE_OTHER\nPRIVATE_KEY\nPRIVATE_KEY\n""' }, keys: ['PRIVATE_HEADER'], mapping: { format: 'mytools.trueflow.mapping', version: 1, columns: [{ before: 'PRIVATE_HEADER', after: 'PRIVATE_OTHER' }] } }, 'b', null],
+    ['trueflow_run', { source: { text: 'PRIVATE_HEADER,other\nPRIVATE_VALUE,' }, recipe: { format: 'mytools.trueflow.recipe', version: 1, steps: [{ type: 'require', columns: ['other'] }] } }, 'input', 1],
+  ];
+  const input = [initialize, initialized, ...fixtures.map(([name, args], i) => rpc(i + 2, 'tools/call', { name, arguments: args }))].map(x => JSON.stringify(x) + '\n').join('');
+  const child = spawnSync(process.execPath, [mcp], { input, encoding: 'utf8', timeout: 10000 });
+  assert.equal(child.status, 0); assert.equal(child.stderr, ''); assert.doesNotMatch(child.stdout, /PRIVATE_/);
+  const messages = child.stdout.trim().split('\n').map(JSON.parse).slice(1), { port } = await local(t);
+  for (const [i, [name, args, source, step]] of fixtures.entries()) {
+    const m = messages[i].result, h = await http(port, `/v1/tools/${name}`, { body: JSON.stringify(args) });
+    assert.equal(m.isError, true); assert.equal(h.status, 422);
+    assert.deepEqual(m.structuredContent, h.body); assert.equal(m.content[0].text, h.body.error);
+    assert.deepEqual(JSON.parse(m.content[1].text), h.body);
+    assert.equal(h.body.diagnostic.source, source); assert.equal(h.body.diagnostic.step, step);
+    assert.doesNotMatch(JSON.stringify(h.body), /PRIVATE_|other/);
+    assert.ok(!Object.hasOwn(h.body, 'result'));
+  }
+});
+test('HTTP diagnostic failures still require authentication and do not expose partial locations', async t => {
+  const { port } = await local(t);
+  const body = JSON.stringify({ before: { text: 'id\nx\nx' }, after: { text: 'id\nx' }, keys: ['id'] });
+  const r = await http(port, '/v1/tools/trueflow_compare', { body, headers: { Authorization: '' } });
+  assert.equal(r.status, 401); assert.deepEqual(r.body, { error: 'UNAUTHORIZED' });
+});

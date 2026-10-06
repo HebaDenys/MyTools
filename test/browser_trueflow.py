@@ -187,6 +187,53 @@ with sync_playwright() as p:
     expect(page.locator('#status')).to_contain_text('UTF8_REQUIRED')
     check('Failed late source import clears stale results and mapping', not page.locator('#results').is_visible() and page.locator('#mapping-columns select').count() == 0 and page.locator('#export-json').is_disabled())
     page.evaluate('() => { File.prototype.arrayBuffer = window.originalRead; }')
+    # Failed validation is inspectable even beyond the normal 30-record preview.
+    page.locator('#clear').click()
+    page.locator('#format-a').select_option('csv')
+    page.locator('#format-b').select_option('csv')
+    original = 'id,name\n' + ''.join(f'{i:03d},Sample\n' for i in range(40)) + '001,PRIVATE_VALUE\n,PRIVATE_EMPTY\n'
+    page.locator('#input-a').fill(original)
+    page.locator('#input-b').fill('id,name\n001,Sample')
+    page.locator('#run').click()
+    page.locator('#compare-key').select_option('id')
+    check('Conflict panel identifies duplicates beyond the normal preview', page.locator('#validation-panel').is_visible() and page.locator('#validation-issues tbody tr').count() == 2 and '42' in page.locator('#validation-issues').inner_text())
+    check('Validation keeps original input unchanged and all data exports blocked', page.locator('#input-a').input_value() == original and not page.locator('#results').is_visible() and all(page.locator('#' + id).is_disabled() for id in ['export-json', 'export-csv', 'export-report']))
+    check('Diagnostic UI does not show private cell values', 'PRIVATE_' not in page.locator('#validation-panel').inner_text())
+    with page.expect_download() as info:
+        page.locator('#export-validation').click()
+    diagnostic_text = Path(info.value.path()).read_text()
+    diagnostic = json.loads(diagnostic_text)
+    check('Real diagnostic download contains original conflict positions only', diagnostic['totalIssues'] == 2 and diagnostic['issues'][0]['record'] == 42 and diagnostic['issues'][0]['firstRecord'] == 3 and 'PRIVATE_' not in diagnostic_text)
+    page.locator('#language').select_option('es')
+    check('Conflict guidance is translated without discarding diagnostic state', 'Registros que bloquean' in page.locator('#validation-title').inner_text() and page.locator('#validation-issues tbody tr').count() == 2)
+    page.locator('#validation-issues').focus()
+    check('Conflict table is keyboard-focusable', page.evaluate("document.activeElement.id") == 'validation-issues')
+    if args.screenshots:
+        target = Path(args.screenshots); target.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(target / 'TrueFlow-conflicts-desktop.png'), full_page=True)
+    page.set_viewport_size({'width': 390, 'height': 844})
+    check('Conflict panel fits a mobile viewport', page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'))
+    if args.screenshots:
+        page.screenshot(path=str(target / 'TrueFlow-conflicts-mobile.png'), full_page=True)
+    page.set_viewport_size({'width': 1440, 'height': 1100})
+    page.locator('#input-a').fill('id,name\n001,Repaired\n002,Sample')
+    check('Editing input clears conflict details and disables their export', not page.locator('#validation-panel').is_visible() and page.locator('#export-validation').is_disabled() and page.locator('#validation-issues').inner_text() == '')
+    page.locator('#run').click()
+    page.locator('#review').check()
+    with page.expect_download() as info:
+        page.locator('#export-json').click()
+    check('Correcting conflicts completes an actual reviewed data export', json.loads(Path(info.value.path()).read_text())[0]['name'] == 'Repaired')
+    # A pending failed recipe import must invalidate both output and diagnostics
+    # produced while that file was still being read (not only on import start).
+    page.evaluate("() => { window.originalRead = File.prototype.arrayBuffer; File.prototype.arrayBuffer = async function() { await window.originalRead.call(this); return new Promise((_, reject) => { window.failRecipeRead = () => reject(new Error('synthetic')); }); }; }")
+    page.locator('#recipe-file').set_input_files({'name': 'delayed-recipe.json', 'mimeType': 'application/json', 'buffer': b'{}'})
+    wait_hook(page, 'failRecipeRead')
+    page.locator('#run').click()
+    page.locator('#review').check()
+    page.evaluate('window.failRecipeRead()')
+    expect(page.locator('#status')).to_contain_text('UTF8_REQUIRED')
+    check('Late failed recipe read cannot leave results exportable', not page.locator('#results').is_visible() and page.locator('#export-json').is_disabled())
+    page.evaluate('() => { File.prototype.arrayBuffer = window.originalRead; }')
     for language in ['en', 'es', 'it']:
         page.locator('#language').select_option(language)
         page.locator('#demo').click()

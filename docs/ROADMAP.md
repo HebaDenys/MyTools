@@ -16,10 +16,15 @@ larger count of utility pages. Fix regressions and unsafe exports first.
   CLI and the shared MCP/API comparison contract. Original columns are preserved;
   unmatched/ambiguous mappings fail closed. Late failed imports clear stale output.
 
+- v0.5.0: inspect/export bounded validation locations for missing/duplicate keys
+  and required values across browser, CLI and MCP/API; preserve fail-closed data
+  exports. Null/falsy recipe columns are rejected and late failed recipe imports
+  invalidate any intervening results.
+
 ## Next milestone: make TrueFlow easier to trust on real archives
 
-1. Improve actionable error messages and affected-record inspection without
-   including sensitive values in logs/reports.
+1. Key/required-value conflict diagnostics are implemented. Next: extend useful
+   source-location guidance to parser/schema errors without echoing values.
 2. Schema mapping is implemented. Next: improve guidance for complex mapping
    conflicts without guessing correspondences or silently dropping columns.
 3. Evaluate cancellable worker-based processing and bounded larger-file support.

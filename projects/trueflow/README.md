@@ -151,3 +151,58 @@ Mapping is opt-in; existing calls without it retain their prior behavior.
 Unknown names, duplicate targets/sources, unsupported versions or unrecognized
 fields are rejected. Mapping files contain data, never executable expressions.
 Headers may themselves be sensitive: review mapping/report files before sharing.
+
+## Inspecting validation failures (v0.5.0)
+
+An empty/repeated comparison key or failing `require`/`unique` recipe step now
+opens a **Records blocking this workflow** panel. It lists logical source record
+numbers, the first occurrence of each repeated nonempty key, and 1-based column
+positions. You can export those locations as JSON even though data exports remain
+blocked. Correct the original input or deliberately change the recipe, then rerun
+and review the actual output. This never automatically removes duplicate rows.
+
+The diagnostic describes only the **first failing gate and dataset**. Later steps
+and datasets have not been validated yet. Each invalid row counts once; the first
+occurrence of a duplicate nonempty key does not count as a failure. An empty key
+is listed as missing, not grouped with other empty keys. At most 100 locations are
+returned, with a complete total and explicit `truncated` flag. Run again after
+fixes to inspect remaining failures. No list is presented as exhaustive when capped.
+
+`record`/`firstRecord` refer to original logical records (CSV header is 1, JSON
+starts at 1), even after filtering. `columns` refer to the schema **at the failing
+gate**, after mapping, reordering or preceding recipe steps, not necessarily the
+original column positions. `source` is `a`, `b` or `input` for a standalone engine/
+API recipe. `step` is 1-based in the recipe, or null for comparison-key checks.
+The diagnostic contains no cell values, key values, header names, file names or
+paths. Counts and positions are still metadata; review before sharing them.
+
+Synthetic example: save the input/recipe below locally, or paste the CSV into
+TrueFlow and add a Unique step for `id`:
+
+```csv
+id,name
+001,Sample A
+001,Sample B
+,Sample C
+```
+
+```json
+{"format":"mytools.trueflow.recipe","version":1,"steps":[{"type":"unique","columns":["id"]}]}
+```
+
+The diagnostic identifies record 3 as repeating record 2, and record 4 as missing
+the key. Repair to distinct nonempty IDs, rerun, review and export normally.
+
+For command-line handling:
+
+```sh
+node projects/trueflow/cli.mjs input.csv --recipe recipe.json --diagnostics-json
+```
+
+On validation failure the process exits 1, preserves the existing stable stderr
+error code, and writes `{ "error": "...", "diagnostic": { ... } }` to stdout.
+No requested output/report file is created on validation failure. Other failures
+may have only `error`, without `diagnostic`; a later I/O error can still leave an
+already completed first output as documented above. Without the flag, error
+stdout stays empty. Successful output behavior is unchanged. No extra file read
+capability or automatic persistence was added to MCP/API.
