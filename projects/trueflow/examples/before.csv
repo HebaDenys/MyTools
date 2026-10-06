@@ -1,0 +1,6 @@
+id,name,email,status
+001, Sample A ,sample-a@example.invalid,active
+002,Sample B,sample-b@example.invalid,pending
+003,Sample C,,active
+003,Sample C,,active
+004,Sample D,sample-d@example.invalid,inactive

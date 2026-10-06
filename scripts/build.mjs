@@ -22,3 +22,15 @@ await mkdir(new URL('dist/', root), { recursive: true });
 await writeFile(new URL('dist/MyTools.html', root), html);
 for (const name of ['LICENSE', 'NOTICE', 'COMMERCIAL.md', 'SECURITY.md']) await copyFile(new URL(name, root), new URL(`dist/${name}`, root));
 console.log('Built dist/MyTools.html and licensing documents.');
+
+// Independent project: share licensing/build guarantees, not application state.
+const flowNames = 'LIMITS, parseData, profile, emptyRecipe, readRecipe, validateRecipe, runRecipe, reconcile, exportCSV, exportJSON';
+const flowApp = (await read('projects/trueflow/app.mjs')).replace(/^import .* from ['"][^'"]+['"];\n/gm, '');
+if (/^import /m.test(flowApp)) throw new Error('Unsupported TrueFlow import.');
+const flowScript = `'use strict';\n(() => {\nconst { ${flowNames} } = ${wrapped(await read('projects/trueflow/core.mjs'), flowNames)};\n${withoutExports(await read('projects/trueflow/i18n.mjs'))}\n${flowApp}\n})();\n`;
+const flowCss = await read('projects/trueflow/styles.css');
+if (/<\/script/i.test(flowScript) || /<\/style/i.test(flowCss)) throw new Error('Unsafe TrueFlow inline closing tag.');
+const flowCsp = `default-src 'none'; script-src 'sha256-${hash(flowScript)}'; style-src 'sha256-${hash(flowCss)}'; connect-src 'none'; img-src data:; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'`;
+const flowValues = { __CSP__: flowCsp, __STYLE__: flowCss, __LICENSE__: license, __SCRIPT__: flowScript };
+await writeFile(new URL('dist/TrueFlow.html', root), (await read('projects/trueflow/index.html')).replace(/__CSP__|__STYLE__|__LICENSE__|__SCRIPT__/g, key => flowValues[key]));
+console.log('Built dist/TrueFlow.html.');

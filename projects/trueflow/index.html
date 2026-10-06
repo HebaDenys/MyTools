@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="__CSP__"><title>TrueFlow · MyTools data workbench</title><style>__STYLE__</style></head>
+<body>
+<a class="skip" href="#sources">Skip to workspace</a>
+<div class="shell">
+<header><div class="brand"><span class="mark" aria-hidden="true">tf/</span><span>MyTools <b>TrueFlow</b><small>DATA WORKBENCH · 0.2</small></span></div><div class="header-actions"><a href="MyTools.html" data-i18n="toolbox"></a><span class="badge" data-i18n="local"></span><label class="sr-only" for="language" data-i18n="language"></label><select id="language"><option value="en">English</option><option value="it">Italiano</option><option value="es">Español</option></select></div></header>
+<section class="hero"><p class="eyebrow">MYTOOLS / INDEPENDENT PROJECTS / 01</p><h1 data-i18n="title"></h1><p data-i18n="intro"></p><div class="actions"><button id="demo" class="secondary" data-i18n="demo"></button><button id="clear" class="quiet" data-i18n="clear"></button></div></section>
+<main>
+<section id="sources" class="sources">
+  <article class="panel"><h2 data-i18n="sourceA"></h2><div class="source-controls"><label for="format-a" data-i18n="format"></label><select id="format-a"><option value="csv">CSV (,)</option><option value="semicolon">CSV (;)</option><option value="tsv">TSV (Tab)</option><option value="json">JSON</option></select><label for="file-a" data-i18n="chooseFile"></label><input id="file-a" type="file" accept=".csv,.tsv,.json,.txt"></div><label for="input-a" class="sr-only" data-i18n="input"></label><textarea id="input-a" maxlength="5242880" rows="7" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="id,name,status&#10;001, Sample A ,active"></textarea></article>
+  <article class="panel"><h2 data-i18n="sourceB"></h2><div class="source-controls"><label for="format-b" data-i18n="format"></label><select id="format-b"><option value="csv">CSV (,)</option><option value="semicolon">CSV (;)</option><option value="tsv">TSV (Tab)</option><option value="json">JSON</option></select><label for="file-b" data-i18n="chooseFile"></label><input id="file-b" type="file" accept=".csv,.tsv,.json,.txt"></div><label for="input-b" class="sr-only" data-i18n="input"></label><textarea id="input-b" maxlength="5242880" rows="7" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="id,name,status&#10;001,Sample A,updated"></textarea></article>
+</section>
+<div class="runbar"><button id="run" data-i18n="analyze"></button><small data-i18n="limit"></small></div><p id="status" role="status" aria-live="polite"></p>
+<div class="workbench">
+<aside class="panel recipe"><p class="eyebrow">REPEATABLE · REVERSIBLE · LOCAL</p><h2 data-i18n="recipe"></h2><p class="hint" data-i18n="recipeHint"></p><ol id="steps"></ol><p id="no-steps" class="hint" data-i18n="noSteps"></p>
+<label for="operation" data-i18n="operation"></label><select id="operation"></select>
+<label for="columns" data-i18n="columns"></label><select id="columns" multiple size="5"></select>
+<div id="filter-options" hidden><label for="operator" data-i18n="operator"></label><select id="operator"><option value="eq" data-i18n="eq"></option><option value="neq" data-i18n="neq"></option><option value="contains" data-i18n="contains"></option></select></div>
+<div id="value-options" hidden><label for="value" data-i18n="value"></label><input id="value" type="text" maxlength="1000" autocomplete="off" spellcheck="false"></div>
+<button id="add" data-i18n="add"></button><div class="actions"><button id="reset-recipe" class="quiet" data-i18n="resetRecipe"></button><button id="save-recipe" class="quiet" data-i18n="saveRecipe"></button></div><label for="recipe-file" data-i18n="importRecipe"></label><input id="recipe-file" type="file" accept=".json"><p class="hint" data-i18n="recipeWarning"></p>
+</aside>
+<section class="panel outputs"><h2 data-i18n="results"></h2><label for="compare-key" data-i18n="compareKey"></label><select id="compare-key"></select><p class="hint" data-i18n="noComparison"></p>
+<div id="results" hidden>
+<div class="metrics" id="metrics"></div>
+<div class="section-title"><h3 data-i18n="preview"></h3><label class="sr-only" for="preview-source" data-i18n="preview"></label><select id="preview-source"><option value="a" data-i18n="previewA"></option><option value="b" data-i18n="previewB"></option></select></div><p class="hint" data-i18n="previewLimit"></p><div class="table-scroll" id="preview"></div>
+<details open><summary data-i18n="diagnostics"></summary><div class="table-scroll" id="diagnostics"></div></details>
+<details><summary data-i18n="journal"></summary><div class="table-scroll" id="journal"></div></details>
+<section id="diff-section" hidden><h3 data-i18n="comparison"></h3><div class="metrics" id="diff-metrics"></div><p class="hint" data-i18n="diffLimit"></p><div class="table-scroll" id="diff"></div></section>
+<label class="review"><input id="review" type="checkbox"><span data-i18n="review"></span></label><div class="actions"><button id="export-csv" disabled data-i18n="csv"></button><button id="export-json" class="secondary" disabled data-i18n="json"></button><button id="export-report" class="quiet" disabled data-i18n="report"></button></div><p class="hint" data-i18n="reportHint"></p>
+</div>
+</section></div>
+<aside class="warning" data-i18n="warning"></aside>
+</main>
+<section class="principles"><p data-i18n="privacy"></p><p data-i18n="license"></p></section><footer><span>© 2026 Denys Heba · TrueFlow 0.2</span><a href="https://github.com/HebaDenys/MyTools/tree/main/projects/trueflow" target="_blank" rel="noopener noreferrer" data-i18n="source"></a></footer><details class="license"><summary data-i18n="licenseFull"></summary><pre>__LICENSE__</pre></details>
+</div><script>__SCRIPT__</script>
+</body></html>

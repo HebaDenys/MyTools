@@ -1,0 +1,8 @@
+{
+  "format": "mytools.trueflow.recipe",
+  "version": 1,
+  "steps": [
+    { "type": "trim", "columns": ["name"] },
+    { "type": "dedupe", "columns": ["id"] }
+  ]
+}

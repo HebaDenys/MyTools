@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 const root = new URL('../dist/', import.meta.url);
 const files = new Map([['/', ['MyTools.html', 'text/html; charset=utf-8']], ['/MyTools.html', ['MyTools.html', 'text/html; charset=utf-8']], ['/LICENSE', ['LICENSE', 'text/plain; charset=utf-8']]]);
+files.set('/TrueFlow.html', ['TrueFlow.html', 'text/html; charset=utf-8']);
 const server = createServer(async (request, response) => {
   if (!['GET', 'HEAD'].includes(request.method)) { response.writeHead(405, { Allow: 'GET, HEAD' }); response.end(); return; }
   let route;

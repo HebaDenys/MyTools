@@ -59,10 +59,27 @@ jobs:
             AGENTS.md
             CONTRIBUTING.md
             dist/MyTools.html
+            dist/TrueFlow.html
             dist/BUILD_COMMIT.txt
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - run: npm run build
+      - run: python3 -m pip install --disable-pip-version-check playwright==1.57.0
+      - run: python3 -m playwright install --with-deps chromium
+      - run: python3 test/browser_trueflow.py
   release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: test
+    needs: [test, browser]
     runs-on: ubuntu-latest
     timeout-minutes: 8
     permissions:
@@ -89,4 +106,4 @@ jobs:
           fi
           gh release create "$TAG" --target "$GITHUB_SHA" --title "MyTools $TAG" \
             --notes-file docs/RELEASE_NOTES.md \
-            dist/MyTools.html "dist/MyTools-$TAG.zip" dist/SHA256SUMS.txt
+            dist/MyTools.html dist/TrueFlow.html "dist/MyTools-$TAG.zip" dist/SHA256SUMS.txt

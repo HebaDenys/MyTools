@@ -10,7 +10,8 @@ export const TOOLS = [
 ];
 export const TRANSLATIONS = {
   en: {
-    title: 'Small tools. More control.', intro: 'A practical toolbox that keeps your data on your device.', local: 'LOCAL PROCESSING',
+    projectEyebrow: 'INDEPENDENT APPLICATION · READY TO USE', projectDescription: 'Import, diagnose, transform and reconcile CSV/JSON datasets with reusable recipes, a CLI and change reports.', projectOpen: 'Open TrueFlow →', projectHint: 'Extract both HTML files from the release ZIP into the same folder.', 
+    title: 'Your data. Your tools.', intro: 'Independent local applications, with a shared toolbox for the small tasks.', local: 'LOCAL PROCESSING',
     search: 'Find a tool', catalog: 'Tools', language: 'Language', action: 'Action', input: 'Your input', output: 'Result',
     run: 'Run tool', clear: 'Clear everything', sample: 'Try an example', copy: 'Copy result', download: 'Save result',
     terms: 'Extra private terms — one per line', termsHint: 'Names and addresses are not detected automatically. Up to 200 literal terms.',
@@ -42,7 +43,8 @@ export const TRANSLATIONS = {
     hashWarning: 'A checksum is NOT encryption and does not prove a file is safe. Files are read locally, up to 20 MiB. Web Crypto requires browser support.',
   },
   it: {
-    title: 'Piccoli strumenti. Più controllo.', intro: 'Una cassetta degli attrezzi che lascia i dati sul tuo dispositivo.', local: 'ELABORAZIONE LOCALE',
+    projectEyebrow: 'APPLICAZIONE INDIPENDENTE · DISPONIBILE', projectDescription: 'Importa, analizza, trasforma e confronta archivi CSV/JSON con procedure riutilizzabili, CLI e rapporti delle variazioni.', projectOpen: 'Apri TrueFlow →', projectHint: 'Estrai entrambi i file HTML dello ZIP della release nella stessa cartella.', 
+    title: 'I tuoi dati. I tuoi strumenti.', intro: 'Applicazioni locali indipendenti, con una cassetta degli attrezzi per le operazioni rapide.', local: 'ELABORAZIONE LOCALE',
     search: 'Cerca uno strumento', catalog: 'Strumenti', language: 'Lingua', action: 'Operazione', input: 'Il tuo testo', output: 'Risultato',
     run: 'Esegui', clear: 'Cancella tutto', sample: 'Prova un esempio', copy: 'Copia risultato', download: 'Salva risultato',
     terms: 'Altri termini privati — uno per riga', termsHint: 'Nomi e indirizzi non sono rilevati automaticamente. Massimo 200 termini letterali.',
@@ -74,7 +76,8 @@ export const TRANSLATIONS = {
     hashWarning: 'Un hash NON cifra il file e non dimostra che sia sicuro. File letti in locale, massimo 20 MiB. Serve un browser con Web Crypto.',
   },
   es: {
-    title: 'Pequeñas herramientas. Más control.', intro: 'Una caja de herramientas que mantiene los datos en tu dispositivo.', local: 'PROCESAMIENTO LOCAL',
+    projectEyebrow: 'APLICACIÓN INDEPENDIENTE · DISPONIBLE', projectDescription: 'Importá, analizá, transformá y compará archivos CSV/JSON con procesos reutilizables, CLI e informes de cambios.', projectOpen: 'Abrir TrueFlow →', projectHint: 'Extraé ambos archivos HTML del ZIP de la versión en la misma carpeta.', 
+    title: 'Tus datos. Tus herramientas.', intro: 'Aplicaciones locales independientes y una caja de herramientas para las tareas rápidas.', local: 'PROCESAMIENTO LOCAL',
     search: 'Buscar herramienta', catalog: 'Herramientas', language: 'Idioma', action: 'Operación', input: 'Tu texto', output: 'Resultado',
     run: 'Ejecutar', clear: 'Borrar todo', sample: 'Probar ejemplo', copy: 'Copiar resultado', download: 'Guardar resultado',
     terms: 'Otros términos privados — uno por línea', termsHint: 'Los nombres y direcciones no se detectan automáticamente. Máximo 200 términos literales.',

@@ -1,33 +1,37 @@
 # Roadmap
 
-## Initial scope
+See [product vision](PRODUCT_VISION.md). Prefer complete local workflows to a
+larger count of utility pages. Fix regressions and unsafe exports first.
 
-A shared local browser toolbox containing TrueScrub, JSON, Base64, link cleaning,
-text utilities, password generation and SHA-256. Reusable logic lives in packages;
-larger future applications may have independent folders in projects.
+## Implemented
 
-## Next priorities
+- v0.1.0: seven browser utilities, reusable modules, licensing and release pipeline.
+- v0.2.0: TrueFlow independent data workbench: import, diagnose, recipes, keyed
+  comparison, review, real exports and CLI. See its README for exact boundaries.
 
-1. Fix CI, browser regressions, data leaks and incorrect results first.
-2. Expand synthetic TrueScrub regression cases, especially Unicode, credentials,
-   and country-specific identifiers; never claim complete anonymization.
-3. Automate browser accessibility, mobile and offline regression coverage.
-4. Consider image metadata removal with explicit format/support limits, and
-   local CSV inspection with spreadsheet-formula injection protections.
-5. Add per-tool deep links containing only tool IDs, never user inputs; improve
-   keyboard navigation and translations before expanding the catalog.
-6. Separate large future projects cleanly. A Java/Spring integration utility or
-   desktop app can be independent rather than increasing the web app's runtime.
+## Next milestone: make TrueFlow easier to trust on real archives
 
-No placeholder tools, paid APIs, background uploads, fake certifications or
-unverified claims. Keep original projects personal-free/business-paid forever
-as the product policy. Do not publish prices or enable payments without Denys.
+1. Improve actionable error messages and affected-record inspection without
+   including sensitive values in logs/reports.
+2. Add explicit schema mapping for two exports with different column names;
+   show unmatched columns and refuse ambiguous mappings.
+3. Evaluate cancellable worker-based processing and bounded larger-file support.
+   Measure memory/time before increasing limits; do not merely change constants.
+4. Expand browser tests to async import races, keyboard accessibility, both app
+   links and guarded CSV downloads, alongside actual GitHub CI results.
+5. Add privacy-preserving regression fixtures from reported bugs only after they
+   have been replaced with synthetic values.
 
-## Provenance and licensing
+## Next independent application
 
-TrueScrub logic originated in Denys's separately prepared 0.1.0 distribution.
-Its MyTools edition is 0.2.0 and is distributed under the custom MyTools license.
-This does not cancel valid grants for copies of the earlier distribution.
-The repository's initial license-only commit used PolyForm Noncommercial; no
-application code was included in that commit. The application introduced here
-uses LICENSE and its stricter private-person/business distinction.
+TrueCase portable document/evidence bundles, then TrueScrub Privacy Studio batch
+workflows. Both are **planned**, not existing features. Each must meet the
+acceptance criteria in PRODUCT_VISION before being advertised or released.
+No placeholder applications, paid APIs, telemetry or silent background storage.
+
+## Licensing provenance
+
+Preserve the root personal-free/business-paid license on original modules.
+Earlier separately distributed TrueScrub versions retain their valid grants.
+The initial license-only Git commit used PolyForm; application code introduced
+in MyTools uses the custom root license. Do not rewrite history or revoke old grants.
