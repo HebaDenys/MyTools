@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-MyTools-Personal-1.0
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCSV, parseJSON, runRecipe, emptyRecipe, reconcile, validationDiagnostic, VALIDATION_ISSUE_LIMIT } from '../projects/trueflow/core.mjs';
+import { parseCSV, parseJSON, runRecipe, emptyRecipe, reconcile, validationDiagnostic, VALIDATION_ISSUE_LIMIT, applySchemaMapping } from '../projects/trueflow/core.mjs';
 import { callTool, matches, openApi, toolFailure } from '../adapters/local/registry.mjs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -113,4 +113,26 @@ test('CLI optionally emits safe JSON failures without writing output/report file
     assert.deepEqual(JSON.parse(await readFile(out, 'utf8')), [{ id: '001' }, { id: '002' }]);
     assert.equal(JSON.parse(await readFile(report, 'utf8')).a.profile.rowCount, 2);
   } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+// Reconcile the parallel first-pair proposal without changing released error text.
+test('first-pair diagnostics preserve both sides and v0.4.0 machine messages', () => {
+  const duplicate = parseCSV('PRIVATE_HEADER,v\nPRIVATE_KEY,x\nPRIVATE_KEY,y'), valid = parseCSV('PRIVATE_HEADER,v\nPRIVATE_KEY,x');
+  const snapshot = structuredClone(duplicate);
+  for (const [a, b, source] of [[duplicate, valid, 'a'], [valid, duplicate, 'b']]) {
+    const error = failure(() => reconcile(a, b, ['PRIVATE_HEADER'])), d = validationDiagnostic(error);
+    assert.equal(error.message, 'DUPLICATE_KEY: record 3');
+    assert.equal(d.source, source);
+    assert.deepEqual(d.issues, [{ code: 'DUPLICATE_KEY', record: 3, firstRecord: 2, columns: [1] }]);
+    assert.doesNotMatch(error.message + JSON.stringify(d), /PRIVATE_/);
+  }
+  assert.deepEqual(duplicate, snapshot);
+});
+test('mapped B conflict locations and composite-key recovery share one validator', () => {
+  const a = parseCSV('id,status\n001,active'), b = parseCSV('customer_id,status\n001,active\n001,pending');
+  const aligned = applySchemaMapping(a, b, { format: 'mytools.trueflow.mapping', version: 1, columns: [{ before: 'id', after: 'customer_id' }] });
+  const error = failure(() => reconcile(a, aligned, ['id'])), d = validationDiagnostic(error);
+  assert.equal(error.message, 'DUPLICATE_KEY: record 3'); assert.equal(d.source, 'b');
+  assert.equal(d.issues[0].firstRecord, 2); assert.equal(d.issues[0].record, 3);
+  assert.deepEqual(reconcile(a, aligned, ['id', 'status']).summary, { added: 1, removed: 0, changed: 0, unchanged: 1 });
 });

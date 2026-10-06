@@ -206,6 +206,23 @@ with sync_playwright() as p:
     check('Real diagnostic download contains original conflict positions only', diagnostic['totalIssues'] == 2 and diagnostic['issues'][0]['record'] == 42 and diagnostic['issues'][0]['firstRecord'] == 3 and 'PRIVATE_' not in diagnostic_text)
     page.locator('#language').select_option('es')
     check('Conflict guidance is translated without discarding diagnostic state', 'Registros que bloquean' in page.locator('#validation-title').inner_text() and page.locator('#validation-issues tbody tr').count() == 2)
+    for language, source, pair in [('en', 'Dataset A', '3 and 42'), ('it', 'Archivio A', '3 e 42'), ('es', 'Archivo A', '3 y 42')]:
+        page.locator('#language').select_option(language)
+        status = page.locator('#status').inner_text()
+        check(f'First-pair summary is actionable in {language}', 'DUPLICATE_KEY' in status and source in status and pair in status and 'PRIVATE_' not in status)
+    # A valid left dataset must locate the error on B, not the previous A failure.
+    saved_a, saved_b = page.locator('#input-a').input_value(), page.locator('#input-b').input_value()
+    page.locator('#input-a').fill('id,name\n001,A')
+    page.locator('#input-b').fill('id,name\nPRIVATE_KEY,A\nPRIVATE_KEY,B')
+    page.locator('#run').click()
+    check('First-pair status identifies B without disclosing keys', 'Archivo B' in page.locator('#status').inner_text() and '2 y 3' in page.locator('#status').inner_text() and 'PRIVATE_KEY' not in page.locator('#status').inner_text())
+    page.locator('#input-b').fill('id,name\n,PRIVATE_CELL')
+    page.locator('#run').click()
+    check('Empty-key summary gives source, record and repair guidance', 'EMPTY_KEY' in page.locator('#status').inner_text() and 'Archivo B' in page.locator('#status').inner_text() and 'Completá' in page.locator('#status').inner_text() and 'PRIVATE_CELL' not in page.locator('#status').inner_text())
+    page.locator('#input-a').fill(saved_a)
+    page.locator('#input-b').fill(saved_b)
+    page.locator('#run').click()
+
     page.locator('#validation-issues').focus()
     check('Conflict table is keyboard-focusable', page.evaluate("document.activeElement.id") == 'validation-issues')
     if args.screenshots:

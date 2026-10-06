@@ -109,13 +109,23 @@ function analyze() {
   } catch (error) {
     invalidate(); diagnostic = validationDiagnostic(error);
     if (diagnostic) renderValidation();
-    message(`${t('error')}: ${error.message}`, true);
+    else message(`${t('error')}: ${error.message}`, true);
   }
+}
+// Human guidance uses trusted structured locations, never parses machine error text.
+// Keep the transport messages compatible with the last published v0.4.0 release.
+function validationSummary() {
+  const first = diagnostic.issues[0];
+  const source = diagnostic.source === 'input' ? t('validationCurrent') : `${t('validationSource')} ${diagnostic.source.toUpperCase()}`;
+  const template = first.code === 'DUPLICATE_KEY' ? t('validationDuplicateSummary')
+    : first.code === 'EMPTY_KEY' ? t('validationEmptySummary') : t('validationRequiredSummary');
+  const values = { source, first: first.firstRecord, record: first.record, columns: first.columns.join(', ') };
+  return `${t('error')}: ${first.code} — ${template.replace(/\{([a-z]+)\}/g, (_, key) => values[key] ?? '')}`;
 }
 function renderValidation() {
   if (!diagnostic) return;
   $('validation-panel').hidden = false; $('export-validation').disabled = false;
-  message(`${t('error')}: ${diagnostic.issues[0].code}: record ${diagnostic.issues[0].record}`, true);
+  message(validationSummary(), true);
   $('validation-context').textContent = `${t('validationSource')}: ${diagnostic.source.toUpperCase()} · ${t('validationCheck')}: ${t(diagnostic.check)} · ${t('step')}: ${diagnostic.step ?? t('validationComparison')}`;
   $('validation-count').textContent = `${t('validationCount')}: ${diagnostic.totalIssues} · ${t('validationShown')}: ${diagnostic.issues.length}${diagnostic.truncated ? ` · ${t('validationTruncated')}` : ''}`;
   drawTable('validation-issues', [t('validationReason'), t('record'), t('validationFirst'), t('validationColumns')], diagnostic.issues.map(i => [t(i.code), i.record, i.firstRecord, i.columns.join(', ')]));

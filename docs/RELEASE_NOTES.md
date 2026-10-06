@@ -14,6 +14,12 @@ to 100 listed rows, complete total and an explicit truncation flag. Diagnostic
 locations contain no cell/key values, header names or file paths. Column positions
 refer to the failing schema; record numbers refer to original logical records.
 
+The parallel first-pair conflict work is reconciled into this release: the browser
+status names A/B and both original records, with localized repair guidance. CLI
+stderr, HTTP error text and the first MCP text block deliberately retain v0.4.0
+messages; clients use the additive structured diagnostic for the richer locations.
+There is one validation engine, not two competing error implementations.
+
 Also fixes null/falsy recipe columns silently bypassing some operations, and a
 late failed recipe-file import leaving an intervening result exportable.
 

@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-MyTools-Personal-1.0
 export const COPY = {
   en: {
+    validationCurrent: "Current dataset",
+    validationDuplicateSummary: "{source}: source records {first} and {record} share the selected key. Correct the input or choose a genuinely unique key; deduplicate only when discarding later rows is intended.",
+    validationEmptySummary: "{source}: source record {record} has an empty selected key (column positions {columns}). Fill the missing key or explicitly filter that record before retrying.",
+    validationRequiredSummary: "{source}: source record {record} has required empty values (column positions {columns}). Correct the input or deliberately revise this validation step.",
     validationTitle: "Records blocking this workflow",
     validationSource: "Dataset",
     validationCheck: "Validation",
@@ -35,6 +39,10 @@ export const COPY = {
     remove:'Remove step', up:'Move step up', down:'Move step down', imported:'Recipe imported. Run it on your data.', downloaded:'Export prepared.', protected:'Formula-like cells prefixed', source:'Source and documentation', toolbox:'Small utilities', noComparison:'Load B and choose a unique key to identify added, removed and changed records.', language:'Language',
   },
   it: {
+    validationCurrent: "Archivio corrente",
+    validationDuplicateSummary: "{source}: i record originali {first} e {record} condividono la chiave selezionata. Correggi i dati o scegli una chiave davvero univoca; rimuovi i duplicati solo se intendi scartare le righe successive.",
+    validationEmptySummary: "{source}: il record originale {record} ha una chiave selezionata vuota (posizioni delle colonne {columns}). Compila la chiave mancante o filtra esplicitamente quel record prima di riprovare.",
+    validationRequiredSummary: "{source}: il record originale {record} ha valori obbligatori vuoti (posizioni delle colonne {columns}). Correggi i dati o modifica consapevolmente questo passaggio di validazione.",
     validationTitle: "Record che bloccano la procedura",
     validationSource: "Archivio",
     validationCheck: "Controllo",
@@ -69,6 +77,10 @@ export const COPY = {
     remove:'Rimuovi passaggio', up:'Sposta passaggio in alto', down:'Sposta passaggio in basso', imported:'Procedura importata. Eseguila sui tuoi dati.', downloaded:'Esportazione preparata.', protected:'Celle simili a formule con apostrofo aggiunto', source:'Codice e documentazione', toolbox:'Utility rapide', noComparison:'Carica B e scegli una chiave unica per individuare record aggiunti, rimossi e modificati.', language:'Lingua',
   },
   es: {
+    validationCurrent: "Archivo actual",
+    validationDuplicateSummary: "{source}: los registros de origen {first} y {record} comparten la clave elegida. Corregí los datos o elegí una clave realmente única; eliminá duplicados solo si querés descartar las filas posteriores.",
+    validationEmptySummary: "{source}: el registro de origen {record} tiene una clave elegida vacía (posiciones de columnas {columns}). Completá la clave faltante o filtrá explícitamente ese registro antes de reintentar.",
+    validationRequiredSummary: "{source}: el registro de origen {record} tiene valores obligatorios vacíos (posiciones de columnas {columns}). Corregí los datos o modificá conscientemente este paso de validación.",
     validationTitle: "Registros que bloquean el proceso",
     validationSource: "Archivo",
     validationCheck: "Validación",

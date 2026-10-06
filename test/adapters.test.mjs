@@ -151,6 +151,7 @@ test('mapping schema is closed in discovery and actual invocation', async () => 
 
 test('real MCP and HTTP expose the same bounded conflict diagnostics, never values/headers', async t => {
   const fixtures = [
+    ['trueflow_compare', { before: { text: 'PRIVATE_HEADER\nPRIVATE_KEY\nPRIVATE_KEY' }, after: { text: 'PRIVATE_HEADER\nPRIVATE_KEY' }, keys: ['PRIVATE_HEADER'] }, 'a', null],
     ['trueflow_compare', { before: { text: 'PRIVATE_HEADER\nx' }, after: { text: 'PRIVATE_OTHER\nPRIVATE_KEY\nPRIVATE_KEY\n""' }, keys: ['PRIVATE_HEADER'], mapping: { format: 'mytools.trueflow.mapping', version: 1, columns: [{ before: 'PRIVATE_HEADER', after: 'PRIVATE_OTHER' }] } }, 'b', null],
     ['trueflow_run', { source: { text: 'PRIVATE_HEADER,other\nPRIVATE_VALUE,' }, recipe: { format: 'mytools.trueflow.recipe', version: 1, steps: [{ type: 'require', columns: ['other'] }] } }, 'input', 1],
   ];
@@ -164,6 +165,10 @@ test('real MCP and HTTP expose the same bounded conflict diagnostics, never valu
     assert.deepEqual(m.structuredContent, h.body); assert.equal(m.content[0].text, h.body.error);
     assert.deepEqual(JSON.parse(m.content[1].text), h.body);
     assert.equal(h.body.diagnostic.source, source); assert.equal(h.body.diagnostic.step, step);
+    if (name === 'trueflow_compare') {
+      assert.equal(h.body.error, 'DUPLICATE_KEY: record 3');
+      assert.equal(h.body.diagnostic.issues[0].firstRecord, 2); assert.equal(h.body.diagnostic.issues[0].record, 3);
+    }
     assert.doesNotMatch(JSON.stringify(h.body), /PRIVATE_|other/);
     assert.ok(!Object.hasOwn(h.body, 'result'));
   }
