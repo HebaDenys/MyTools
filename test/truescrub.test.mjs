@@ -26,6 +26,8 @@ const cases = [
   ['API key', 'api_key=fictional', 'api_key=[SECRET]'],
   ['access token', 'access-token: fictional', 'access-token: [SECRET]'],
   ['bearer', 'Authorization: Bearer synthetic-token-only', 'Authorization: Bearer [SECRET]'],
+  ['basic auth', 'Authorization: Basic dXNlcjpwYXNz', 'Authorization: Basic [SECRET]'],
+  ['proxy basic auth', 'Proxy-Authorization: Basic dXNlcjpwYXNz', 'Proxy-Authorization: Basic [SECRET]'],
   ['URL credential', 'https://demo:fictional@example.org/path', 'https://[SENSITIVE]/path'],
   ['PEM', 'before\n-----BEGIN PRIVATE KEY-----\nNOT_A_KEY\n-----END PRIVATE KEY-----\nafter', 'before\n[PRIVATE_KEY]\nafter'],
   ['truncated PEM', 'before\n-----BEGIN RSA PRIVATE KEY-----\nNOT_A_KEY', 'before\n[PRIVATE_KEY]'],
@@ -35,7 +37,7 @@ const cases = [
   ['JWT shape', 'eyJxxxxx.abcdefghi.abcdefghi', '[SECRET]'],
 ];
 for (const [name, input, expected] of cases) test(name, () => assert.equal(scrub(input).text, expected));
-for (const value of ['HTTP 503 after 1200 ms', '2026-10-06', '999.1.1.1', '1234567890123', '0000000000000000', 'support at example dot org']) test(`negative: ${value}`, () => assert.equal(scrub(value).text, value));
+for (const value of ['HTTP 503 after 1200 ms', '2026-10-06', '999.1.1.1', '1234567890123', '0000000000000000', 'support at example dot org', 'Basic training material']) test(`negative: ${value}`, () => assert.equal(scrub(value).text, value));
 test('empty string', () => assert.equal(scrub('').text, ''));
 test('categories can be deliberately disabled', () => assert.equal(scrub('a@example.org', { categories: [] }).text, 'a@example.org'));
 test('case-insensitive literal custom term', () => assert.equal(scrub('Alex EXAMPLE and Alex Example', { customTerms: ['Alex Example'] }).text, '[CUSTOM] and [CUSTOM]'));

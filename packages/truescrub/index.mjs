@@ -88,6 +88,7 @@ function scan(text, config) {
   collect(/(?<![A-Za-z0-9_-])(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[A-Z0-9]{16}|sk-(?:proj-|ant-)?[A-Za-z0-9_-]{16,})(?![A-Za-z0-9_-])/gd, 'SECRET');
   collect(/(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}(?![A-Za-z0-9_-])/gd, 'SECRET');
   collect(/\bBearer[ \t]+([A-Za-z0-9._~+\/-]{4,}=*)/gdi, 'SECRET', () => true, 1);
+  collect(/\b(?:Proxy-)?Authorization[ \t]*:[ \t]*Basic[ \t]+([A-Za-z0-9+/]{8,}={0,2})(?![A-Za-z0-9+/=])/gdi, 'SECRET', () => true, 1);
   collect(/\b(?:password|passwd|pwd|api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|secret|token)\b["']?[ \t]*[:=][ \t]*(?:"((?:\\[^\r\n]|[^"\\\r\n]|\\(?=\r?\n|$))+)(?:"|(?=\r?\n|$))|'((?:\\[^\r\n]|[^'\\\r\n]|\\(?=\r?\n|$))+)(?:'|(?=\r?\n|$))|([^\s,;}&"']+))/gdi,
     'SECRET', () => true, match => match[1] !== undefined ? 1 : match[2] !== undefined ? 2 : 3);
   collect(/\b[A-Za-z][A-Za-z0-9+.-]{0,20}:\/\/([^/\s@]+)(?=@)/gd, 'SECRET', () => true, 1);
