@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+// SPDX-License-Identifier: LicenseRef-MyTools-Personal-1.0
+// Dedicated to cleanup-branches.mjs, not installed as a developer-wide hook.
+import { readFileSync } from 'node:fs';
+const lines = readFileSync(0, 'utf8').trim().split('\n');
+const [localRef, localSha, remoteRef, remoteSha] = (lines[0] ?? '').split(/\s+/);
+const valid = lines.length === 1 && localRef === '(delete)' && localSha === '0'.repeat(40)
+  && /^refs\/heads\/[A-Za-z0-9][A-Za-z0-9._/-]{0,150}$/.test(remoteRef ?? '')
+  && remoteRef === process.env.MYTOOLS_DELETE_REF && /^[a-f0-9]{40}$/.test(remoteSha ?? '')
+  && remoteSha === process.env.MYTOOLS_DELETE_SHA;
+if (!valid) { console.error('Deletion refused: branch moved or push is not the exact approved deletion.'); process.exit(1); }
