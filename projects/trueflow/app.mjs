@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-MyTools-Personal-1.0
-import { LIMITS, parseData, profile, emptyRecipe, readRecipe, validateRecipe, runRecipe, reconcile, exportCSV, exportJSON, emptyMapping, readMapping, planSchemaMapping, applySchemaMapping, validationDiagnostic, parseDiagnostic } from './core.mjs';
+import { LIMITS, parseData, profile, emptyRecipe, readRecipe, validateRecipe, runRecipe, reconcile, exportCSV, exportJSON, emptyMapping, readMapping, planSchemaMapping, applySchemaMapping, validationDiagnostic } from './core.mjs';
 import { COPY } from './i18n.mjs';
 const $ = id => document.getElementById(id);
 let lang = Object.hasOwn(COPY, navigator.language?.slice(0, 2)) ? navigator.language.slice(0, 2) : 'en';
@@ -107,7 +107,7 @@ function analyze() {
     result = { schemaMapping: originalB && $('mapping-enabled').checked ? planSchemaMapping(originalA, originalB, mapping) : null, a: { ...a, stats: profile(a.data) }, b: b ? { ...b, stats: profile(b.data) } : null, comparison };
     renderResults(); message(t('ready'));
   } catch (error) {
-    invalidate(); diagnostic = validationDiagnostic(error) ?? parseDiagnostic(error);
+    invalidate(); diagnostic = validationDiagnostic(error, true);
     if (diagnostic) renderDiagnostic();
     else message(`${t('error')}: ${error.message}`, true);
   }

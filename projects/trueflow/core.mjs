@@ -4,10 +4,6 @@ export const LIMITS = Object.freeze({ bytes: 5 * 1024 * 1024, rows: 50000, colum
 const encoder = new TextEncoder();
 const fail = (code, detail = '') => { throw new Error(`${code}${detail ? `: ${detail}` : ''}`); };
 const parseErrors = new WeakMap();
-export function parseDiagnostic(error) {
-  const diagnostic = parseErrors.get(error);
-  return diagnostic ? structuredClone(diagnostic) : null;
-}
 function parseFail(code, detail, diagnostic) {
   const error = new Error(`${code}${detail ? `: ${detail}` : ''}`);
   parseErrors.set(error, { format: 'mytools.trueflow.parse', version: 1, ...diagnostic, code });
@@ -193,8 +189,8 @@ export const emptyRecipe = () => ({ format: 'mytools.trueflow.recipe', version: 
 // arbitrary Error properties, parser messages, cell values or header names.
 const validationErrors = new WeakMap();
 export const VALIDATION_ISSUE_LIMIT = 100;
-export function validationDiagnostic(error) {
-  const diagnostic = validationErrors.get(error);
+export function validationDiagnostic(error, includeParser = false) {
+  const diagnostic = validationErrors.get(error) ?? (includeParser === true ? parseErrors.get(error) : null);
   return diagnostic ? structuredClone(diagnostic) : null;
 }
 function assertValidRows(data, ids, check, source = 'input', step = null) {
