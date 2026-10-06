@@ -21,6 +21,15 @@ def check(name, condition):
     assert condition, name
     checks.append(name)
 
+def wait_hook(page, name):
+    # wait_for_function's internal string eval is disallowed by the app CSP.
+    # Poll the explicit test hook without weakening that CSP.
+    for _ in range(100):
+        if page.evaluate(f'typeof window.{name}') == 'function':
+            return
+        page.wait_for_timeout(20)
+    raise AssertionError('File-read hook was not reached')
+
 with sync_playwright() as p:
     launch = {'headless': True, 'args': ['--no-sandbox']}
     if args.chromium:
@@ -108,6 +117,75 @@ with sync_playwright() as p:
     page.evaluate('window.finishRead()')
     page.wait_for_timeout(50)
     check('Late file imports cannot overwrite newer edits', page.locator('#input-a').input_value() == 'value\nNEW_EDIT')
+    page.evaluate('() => { File.prototype.arrayBuffer = window.originalRead; }')
+    # Schema mapping: B columns align before recipes; unmatched columns block export.
+    page.locator('#clear').click()
+    page.locator('#format-a').select_option('csv')
+    page.locator('#format-b').select_option('csv')
+    page.locator('#input-a').fill('id,name\n001, A \n002,B')
+    page.locator('#input-b').fill('customer_id,label\n001,A\n003,C')
+    page.locator('#run').click()
+    page.locator('#mapping-panel summary').click()
+    page.locator('#mapping-enabled').check()
+    check('Mapping shows unmatched headers and blocks stale exports', 'customer_id' in page.locator('#mapping-summary').inner_text() and page.locator('#export-json').is_disabled())
+    page.locator('#mapping-column-0').select_option('customer_id')
+    check('Partial mappings never silently discard a column', 'label' in page.locator('#mapping-summary').inner_text() and not page.locator('#results').is_visible())
+    page.locator('#mapping-column-1').select_option('label')
+    page.locator('#columns').select_option(['name'])
+    page.locator('#operation').select_option('trim')
+    page.locator('#add').click()
+    page.locator('#compare-key').select_option('id')
+    check('Mapped comparison uses canonical names before recipe', page.locator('#diff-metrics strong').all_text_contents() == ['1', '1', '0', '1'])
+    with page.expect_download() as info:
+        page.locator('#save-mapping').click()
+    mapping_bytes = Path(info.value.path()).read_bytes()
+    saved_mapping = json.loads(mapping_bytes)
+    check('Saved mapping contains exact column pairs but not records', saved_mapping['columns'] == [{'before': 'id', 'after': 'customer_id'}, {'before': 'name', 'after': 'label'}] and b'001' not in mapping_bytes)
+    page.locator('#preview-source').select_option('b')
+    page.locator('#review').check()
+    with page.expect_download() as info:
+        page.locator('#export-json').click()
+    check('Mapped B download contains full canonical records', json.loads(Path(info.value.path()).read_text()) == [{'id': '001', 'name': 'A'}, {'id': '003', 'name': 'C'}])
+    with page.expect_download() as info:
+        page.locator('#export-report').click()
+    report = json.loads(Path(info.value.path()).read_text())
+    check('Mapping correspondence is included in value-free report', report['schemaMapping']['pairs'] == saved_mapping['columns'] and '001' not in json.dumps(report))
+    page.locator('#mapping-column-1').select_option('')
+    check('Mapping edits immediately invalidate review and outputs', page.locator('#export-json').is_disabled() and not page.locator('#results').is_visible())
+    page.locator('#mapping-file').set_input_files({'name': 'mapping.json', 'mimeType': 'application/json', 'buffer': mapping_bytes})
+    expect(page.locator('#results')).to_be_visible()
+    check('Mapping reimport reproduces the comparison', page.locator('#diff-metrics strong').all_text_contents() == ['1', '1', '0', '1'])
+    if args.screenshots:
+        target = Path(args.screenshots); target.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(target / 'TrueFlow-mapping-desktop.png'), full_page=True)
+        page.set_viewport_size({'width': 390, 'height': 844})
+        page.screenshot(path=str(target / 'TrueFlow-mapping-mobile.png'), full_page=True)
+        page.set_viewport_size({'width': 1440, 'height': 1100})
+    page.set_viewport_size({'width': 390, 'height': 844})
+    check('Mapping editor has no mobile horizontal overflow', page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'))
+    page.set_viewport_size({'width': 1440, 'height': 1100})
+    page.locator('#input-b').fill('customer_id,label,extra\n001,A,PRIVATE_CELL')
+    page.locator('#run').click()
+    check('Unexpected B column is named without exposing cell values in diagnostic', 'extra' in page.locator('#mapping-summary').inner_text() and 'PRIVATE_CELL' not in page.locator('#mapping-summary').inner_text() and page.locator('#export-json').is_disabled())
+    # A pending import must not resurrect a cleared mapping or its results.
+    page.evaluate("""() => { window.originalRead = File.prototype.arrayBuffer; File.prototype.arrayBuffer = async function() { const data = await window.originalRead.call(this); return new Promise(resolve => { window.finishMapping = () => resolve(data); }); }; }""")
+    page.locator('#mapping-file').set_input_files({'name': 'delayed.json', 'mimeType': 'application/json', 'buffer': mapping_bytes})
+    wait_hook(page, 'finishMapping')
+    page.locator('#clear').click()
+    page.evaluate('window.finishMapping()')
+    page.wait_for_timeout(50)
+    check('Late mapping import cannot undo Clear', not page.locator('#mapping-enabled').is_checked() and page.locator('#mapping-columns select').count() == 0 and not page.locator('#results').is_visible())
+    page.evaluate('() => { File.prototype.arrayBuffer = window.originalRead; }')
+    page.locator('#input-a').fill('id,name\n001,A')
+    page.locator('#run').click()
+    page.evaluate("""() => { window.originalRead = File.prototype.arrayBuffer; File.prototype.arrayBuffer = async function() { const data = await window.originalRead.call(this); return new Promise(resolve => { window.finishInvalidRead = () => resolve(data); }); }; }""")
+    page.locator('#file-a').set_input_files({'name': 'invalid.csv', 'mimeType': 'text/csv', 'buffer': bytes([255])})
+    wait_hook(page, 'finishInvalidRead')
+    page.locator('#run').click()
+    check('Old input can be inspected while file read is pending', page.locator('#results').is_visible())
+    page.evaluate('window.finishInvalidRead()')
+    expect(page.locator('#status')).to_contain_text('UTF8_REQUIRED')
+    check('Failed late source import clears stale results and mapping', not page.locator('#results').is_visible() and page.locator('#mapping-columns select').count() == 0 and page.locator('#export-json').is_disabled())
     page.evaluate('() => { File.prototype.arrayBuffer = window.originalRead; }')
     for language in ['en', 'es', 'it']:
         page.locator('#language').select_option(language)

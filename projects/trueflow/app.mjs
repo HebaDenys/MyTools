@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-MyTools-Personal-1.0
-import { LIMITS, parseData, profile, emptyRecipe, readRecipe, validateRecipe, runRecipe, reconcile, exportCSV, exportJSON } from './core.mjs';
+import { LIMITS, parseData, profile, emptyRecipe, readRecipe, validateRecipe, runRecipe, reconcile, exportCSV, exportJSON, emptyMapping, readMapping, planSchemaMapping, applySchemaMapping } from './core.mjs';
 import { COPY } from './i18n.mjs';
 const $ = id => document.getElementById(id);
 let lang = Object.hasOwn(COPY, navigator.language?.slice(0, 2)) ? navigator.language.slice(0, 2) : 'en';
-let recipe = emptyRecipe(), result = null;
-const revision = { a: 0, b: 0, recipe: 0 };
+let recipe = emptyRecipe(), result = null, mapping = emptyMapping(), mappingHeaders = null;
+const revision = { a: 0, b: 0, recipe: 0, mapping: 0 };
 const operations = ['trim', 'normalize', 'lower', 'upper', 'redact', 'dropEmpty', 'dedupe', 'select', 'rename', 'filter', 'require', 'unique'];
 const t = key => COPY[lang][key] ?? key;
 const el = (tag, text) => { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; return node; };
@@ -49,6 +49,7 @@ function translate() {
   const oldKey = $('compare-key').value;
   if ($('compare-key').options[0]?.value === '') $('compare-key').options[0].textContent = t('noKey');
   $('compare-key').value = oldKey; renderSteps();
+  if (mappingHeaders) renderMapping();
   if (result) renderResults();
 }
 function drawTable(id, headers, rows) {
@@ -87,13 +88,21 @@ function analyze() {
   invalidate();
   try {
     if (!$('input-a').value.trim()) throw new Error(t('empty'));
-    const a = runRecipe(parseSource('a'), recipe);
-    const b = $('input-b').value.trim() ? runRecipe(parseSource('b'), recipe) : null;
+    const originalA = parseSource('a'), originalB = $('input-b').value.trim() ? parseSource('b') : null;
+    mappingHeaders = originalB ? [originalA, originalB].map(data => ({ columns: [...data.columns], rows: [], sourceRows: [] })) : null;
+    renderMapping();
+    // A supplies canonical names. Mapping happens BEFORE recipes, never by sequential renames.
+    const a = runRecipe(originalA, recipe);
+    options($('columns'), a.data.columns);
+    options($('compare-key'), a.data.columns, a.data.columns, t('noKey'));
+    if ($('mapping-enabled').checked && !originalB) throw new Error('MAPPING_REQUIRES_B');
+    const mappedB = originalB && $('mapping-enabled').checked ? applySchemaMapping(originalA, originalB, mapping) : originalB;
+    const b = mappedB ? runRecipe(mappedB, recipe) : null;
     options($('columns'), a.data.columns);
     options($('compare-key'), a.data.columns, a.data.columns, t('noKey'));
     const key = $('compare-key').value;
     const comparison = b && key ? reconcile(a.data, b.data, [key]) : null;
-    result = { a: { ...a, stats: profile(a.data) }, b: b ? { ...b, stats: profile(b.data) } : null, comparison };
+    result = { schemaMapping: originalB && $('mapping-enabled').checked ? planSchemaMapping(originalA, originalB, mapping) : null, a: { ...a, stats: profile(a.data) }, b: b ? { ...b, stats: profile(b.data) } : null, comparison };
     renderResults(); message(t('ready'));
   } catch (error) { invalidate(); message(`${t('error')}: ${error.message}`, true); }
 }
@@ -108,18 +117,70 @@ async function loadFile(file, max = LIMITS.bytes) {
   catch { throw new Error('UTF8_REQUIRED'); }
 }
 for (const id of ['a', 'b']) {
-  $(`input-${id}`).addEventListener('input', () => { revision[id]++; invalidate(); });
-  $(`format-${id}`).addEventListener('change', () => { revision[id]++; invalidate(); });
+  $(`input-${id}`).addEventListener('input', () => { revision[id]++; clearMappingView(); invalidate(); });
+  $(`format-${id}`).addEventListener('change', () => { revision[id]++; clearMappingView(); invalidate(); });
   $(`file-${id}`).addEventListener('change', async event => {
-    const token = ++revision[id], file = event.target.files[0]; invalidate();
+    const token = ++revision[id], file = event.target.files[0]; clearMappingView(); invalidate();
     if (!file) return;
     try {
-      const text = await loadFile(file); if (token !== revision[id]) return; invalidate();
+      const text = await loadFile(file); if (token !== revision[id]) return; clearMappingView(); invalidate();
       $(`input-${id}`).value = text;
       $(`format-${id}`).value = /\.json$/i.test(file.name) ? 'json' : /\.tsv$/i.test(file.name) ? 'tsv' : 'csv';
-    } catch (error) { if (token === revision[id]) { $(`input-${id}`).value = ''; message(`${t('error')}: ${error.message}`, true); } }
+    } catch (error) { if (token === revision[id]) { clearMappingView(); invalidate(); $(`input-${id}`).value = ''; message(`${t('error')}: ${error.message}`, true); } }
   });
 }
+function clearMappingView() {
+  mappingHeaders = null; $('mapping-columns').replaceChildren(); $('mapping-summary').textContent = ''; $('save-mapping').disabled = true;
+}
+function renderMapping() {
+  $('mapping-columns').replaceChildren(); $('mapping-summary').textContent = ''; $('save-mapping').disabled = true;
+  if (!mappingHeaders || !$('mapping-enabled').checked) return;
+  const [before, after] = mappingHeaders;
+  let plan;
+  try { plan = planSchemaMapping(before, after, mapping); }
+  catch (error) { $('mapping-summary').textContent = error.message; return; }
+  for (const [i, name] of before.columns.entries()) {
+    const row = el('div'); row.className = 'mapping-row';
+    const label = el('label', name), select = el('select'); select.id = `mapping-column-${i}`; label.htmlFor = select.id;
+    // Empty value means "no explicit override", not column deletion. Exact names may still match.
+    const automatic = el('option', t('mappingAutomatic')); automatic.value = ''; select.append(automatic);
+    for (const column of after.columns) { const option = el('option', column); option.value = column; option.disabled = mapping.columns.some(pair => pair.before !== name && pair.after === column); select.append(option); }
+    select.value = mapping.columns.find(pair => pair.before === name)?.after ?? '';
+    const match = plan.pairs.find(pair => pair.before === name);
+    row.append(label, select, el('small', match ? `B: ${match.after}` : t('mappingMissing')));
+    select.addEventListener('change', () => {
+      revision.mapping++;
+      mapping.columns = mapping.columns.filter(pair => pair.before !== name);
+      if (select.value) mapping.columns.push({ before: name, after: select.value });
+      invalidate(); analyze();
+    });
+    $('mapping-columns').append(row);
+  }
+  const missing = plan.unmatchedBefore.length || plan.unmatchedAfter.length;
+  $('mapping-summary').textContent = missing ? `${t('mappingUnmatched')} A: ${plan.unmatchedBefore.join(', ') || '—'}; B: ${plan.unmatchedAfter.join(', ') || '—'}` : t('mappingComplete');
+  $('save-mapping').disabled = Boolean(missing);
+}
+$('mapping-enabled').addEventListener('change', () => { revision.mapping++; invalidate(); analyze(); });
+$('reset-mapping').addEventListener('click', () => { revision.mapping++; mapping = emptyMapping(); $('mapping-file').value = ''; invalidate(); analyze(); });
+$('save-mapping').addEventListener('click', () => {
+  if (!mappingHeaders || !$('mapping-enabled').checked) return;
+  try {
+    const plan = planSchemaMapping(...mappingHeaders, mapping);
+    if (plan.unmatchedBefore.length || plan.unmatchedAfter.length) throw new Error('SCHEMA_UNMAPPED');
+    // Persist all resolved pairs, not guesses; round-trip unchanged through CLI and MCP/API.
+    download(JSON.stringify({ ...emptyMapping(), columns: plan.pairs }, null, 2), 'trueflow-mapping.json');
+    message(t('mappingWarning'));
+  } catch (error) { message(error.message, true); }
+});
+$('mapping-file').addEventListener('change', async event => {
+  const token = ++revision.mapping, file = event.target.files[0]; invalidate();
+  if (!file) return;
+  try {
+    const imported = readMapping(await loadFile(file, 65536));
+    if (token !== revision.mapping) return;
+    mapping = imported; $('mapping-enabled').checked = true; analyze();
+  } catch (error) { if (token === revision.mapping) { invalidate(); message(`${t('error')}: ${error.message}`, true); } }
+});
 $('run').addEventListener('click', analyze);
 $('compare-key').addEventListener('change', analyze);
 $('preview-source').addEventListener('change', () => { $('review').checked = false; renderResults(); });
@@ -149,7 +210,7 @@ $('recipe-file').addEventListener('change', async event => {
 });
 $('clear').addEventListener('click', () => {
   for (const id of ['a', 'b']) { revision[id]++; $(`input-${id}`).value = ''; $(`file-${id}`).value = ''; }
-  revision.recipe++; recipe = emptyRecipe(); $('recipe-file').value = ''; $('value').value = '';
+  revision.recipe++; recipe = emptyRecipe(); revision.mapping++; mapping = emptyMapping(); $('mapping-file').value = ''; $('mapping-enabled').checked = false; clearMappingView(); $('recipe-file').value = ''; $('value').value = '';
   options($('columns'), []); options($('compare-key'), [], [], t('noKey')); invalidate(); renderSteps();
 });
 $('demo').addEventListener('click', () => {
@@ -168,6 +229,7 @@ $('export-json').addEventListener('click', () => { if (result && $('review').che
 $('export-report').addEventListener('click', () => {
   if (!result || !$('review').checked) return;
   const report = { format: 'mytools.trueflow.report', version: 1, a: { profile: result.a.stats, journal: result.a.journal }, b: result.b ? { profile: result.b.stats, journal: result.b.journal } : null, comparison: result.comparison };
+  if (result.schemaMapping) report.schemaMapping = result.schemaMapping;
   download(JSON.stringify(report, null, 2), 'trueflow-report.json'); message(t('downloaded'));
 });
 options($('compare-key'), [], [], t('noKey')); translate();

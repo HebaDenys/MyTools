@@ -12,12 +12,16 @@ larger count of utility pages. Fix regressions and unsafe exports first.
 - v0.3.0: shared MCP stdio/local HTTP contracts, ten callable operations, bounded
   authenticated loopback API, and guarded merged-branch maintenance.
 
+- v0.4.0: explicit reusable schema mapping before TrueFlow recipes, in browser,
+  CLI and the shared MCP/API comparison contract. Original columns are preserved;
+  unmatched/ambiguous mappings fail closed. Late failed imports clear stale output.
+
 ## Next milestone: make TrueFlow easier to trust on real archives
 
 1. Improve actionable error messages and affected-record inspection without
    including sensitive values in logs/reports.
-2. Add explicit schema mapping for two exports with different column names;
-   show unmatched columns and refuse ambiguous mappings.
+2. Schema mapping is implemented. Next: improve guidance for complex mapping
+   conflicts without guessing correspondences or silently dropping columns.
 3. Evaluate cancellable worker-based processing and bounded larger-file support.
    Measure memory/time before increasing limits; do not merely change constants.
 4. Expand browser tests to async import races, keyboard accessibility, both app

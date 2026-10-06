@@ -1,0 +1,5 @@
+customer_id,label,email,status
+001,Sample A,sample-a@example.invalid,active
+002,Sample B,sample-b@example.invalid,active
+003,Sample C,,active
+005,Sample E,sample-e@example.invalid,active

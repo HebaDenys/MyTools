@@ -156,3 +156,36 @@ Protocol references checked on 6 October 2026:
 - https://modelcontextprotocol.io/specification/2025-11-25/basic/transports
 - https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle
 - https://modelcontextprotocol.io/specification/2025-11-25/server/tools
+
+## Comparing renamed columns (v0.4.0)
+
+`trueflow_compare` accepts optional `mapping`, with this closed schema:
+
+```json
+{
+  "before": {"text":"id,name\n001, A \n002,B"},
+  "after": {"text":"key,label\n001,A\n003,C"},
+  "keys": ["id"],
+  "mapping": {"format":"mytools.trueflow.mapping","version":1,"columns":[
+    {"before":"id","after":"key"},{"before":"name","after":"label"}
+  ]},
+  "recipe": {"format":"mytools.trueflow.recipe","version":1,"steps":[
+    {"type":"trim","columns":["name"]}
+  ]}
+}
+```
+
+Pass this object as MCP `tools/call.arguments` for `trueflow_compare`, or as the
+body of `POST /v1/tools/trueflow_compare`. The result has one addition, one removal
+and one unchanged row. Mapping aligns original B headers to A **before** recipes.
+Exactly identical unclaimed names match automatically; all other pairs must be
+explicit. All original columns must be accounted for. No column dropping, fuzzy
+matching or value conversion occurs. Keys refer to the resulting canonical names.
+Without `mapping`, old calls behave exactly as before. The tool count stays ten.
+
+`SCHEMA_UNMAPPED`, `AMBIGUOUS_SCHEMA_MAPPING`, `UNKNOWN_MAPPING_COLUMN` and
+`INVALID_SCHEMA_MAPPING` are stable data-error codes, without source values.
+Malformed contract shapes return `INVALID_ARGUMENTS`. Use `trueflow_profile` to
+inspect header names when diagnosing a mismatch. Both transports and OpenAPI use
+the existing shared registry; no second registry or protocol revision was added.
+The local-execution/client-privacy and paid-business-license boundaries above apply.

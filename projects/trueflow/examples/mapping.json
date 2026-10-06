@@ -1,0 +1,14 @@
+{
+  "format": "mytools.trueflow.mapping",
+  "version": 1,
+  "columns": [
+    {
+      "before": "id",
+      "after": "customer_id"
+    },
+    {
+      "before": "name",
+      "after": "label"
+    }
+  ]
+}

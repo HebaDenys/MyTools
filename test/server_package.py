@@ -38,11 +38,14 @@ with tempfile.TemporaryDirectory(prefix='mytools-package-') as directory:
         {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list'},
         {'jsonrpc': '2.0', 'id': 3, 'method': 'tools/call', 'params': {'name': 'trueflow_run', 'arguments': {'source': {'text': 'id,value\n001,synthetic'}, 'outputFormat': 'json'}}},
     ]
+    compare_args = {'before': {'text': 'id,name\n001,A'}, 'after': {'text': 'key,label\n001,A'}, 'keys': ['id'], 'mapping': {'format': 'mytools.trueflow.mapping', 'version': 1, 'columns': [{'before': 'id', 'after': 'key'}, {'before': 'name', 'after': 'label'}]}}
+    messages.append({'jsonrpc': '2.0', 'id': 4, 'method': 'tools/call', 'params': {'name': 'trueflow_compare', 'arguments': compare_args}})
     result = subprocess.run(['node', 'adapters/local/mcp.mjs'], input=''.join(json.dumps(m) + '\n' for m in messages), text=True, capture_output=True, timeout=10, cwd=target)
     check('Packaged MCP launches without installation or extra logs', result.returncode == 0 and result.stderr == '')
     replies = [json.loads(line) for line in result.stdout.splitlines()]
     check('Packaged MCP discovers all operations', len(replies[1]['result']['tools']) == 10)
     check('Packaged MCP executes complete TrueFlow export', json.loads(replies[2]['result']['structuredContent']['text']) == [{'id': '001', 'value': 'synthetic'}])
+    check('Packaged MCP performs schema-mapped comparison', replies[3]['result']['structuredContent']['summary']['unchanged'] == 1)
     # Synthetic credential is only for the ephemeral test server, never persisted.
     token = 'synthetic_package_test_' * 3
     process = subprocess.Popen(['node', 'adapters/local/http.mjs'], cwd=target, env={**os.environ, 'MYTOOLS_API_TOKEN': token, 'MYTOOLS_API_PORT': '0'}, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -60,6 +63,10 @@ with tempfile.TemporaryDirectory(prefix='mytools-package-') as directory:
         connection.request('POST', '/v1/tools/trueflow_run', json.dumps({'source': {'text': 'id,value\n001,synthetic'}}), {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'})
         response = connection.getresponse(); body = json.loads(response.read()); connection.close()
         check('Packaged API executes actual TrueFlow output', response.status == 200 and json.loads(body['result']['text']) == [{'id': '001', 'value': 'synthetic'}])
+        connection = http.client.HTTPConnection('127.0.0.1', port, timeout=5)
+        connection.request('POST', '/v1/tools/trueflow_compare', json.dumps(compare_args), {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'})
+        response = connection.getresponse(); body = json.loads(response.read()); connection.close()
+        check('Packaged API performs schema-mapped comparison', response.status == 200 and body['result']['summary']['unchanged'] == 1)
     finally:
         process.terminate()
         try:

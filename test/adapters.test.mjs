@@ -11,7 +11,9 @@ import { session, serveStdio } from '../adapters/local/mcp.mjs';
 import { startLocalApi, createLocalApi } from '../adapters/local/http.mjs';
 const source = { text: 'id,name\n001, A \n002,B', format: 'csv' };
 const recipe = { format: 'mytools.trueflow.recipe', version: 1, steps: [{ type: 'trim', columns: ['name'] }] };
+const mappedArgs = { before: source, after: { text: 'customer_id,label\n001,A\n003,C' }, keys: ['id'], recipe, mapping: { format: 'mytools.trueflow.mapping', version: 1, columns: [{ before: 'id', after: 'customer_id' }, { before: 'name', after: 'label' }] } };
 const cases = [
+  ['trueflow_compare', mappedArgs, r => r.summary.added === 1 && r.summary.removed === 1 && r.summary.unchanged === 1],
   ['truescrub', { text: 'Authorization: Basic dXNlcjpwYXNz\nemail: synthetic@example.invalid' }, r => r.text === 'Authorization: Basic [SECRET]\nemail: [EMAIL]'],
   ['json_format', { text: '{"id":90071992547409930001}', pretty: false }, r => r.text === '{"id":90071992547409930001}'],
   ['base64', { text: 'café', operation: 'encode' }, r => r.text === 'Y2Fmw6k='],
@@ -127,4 +129,22 @@ test('HTTP no filesystem/network routes, unknown tool, schema and data errors', 
 test('HTTP startup fails closed without valid token or port', async () => {
   for (const token of [undefined, '', 'short', 'x'.repeat(257), ' '.repeat(32)]) assert.throws(() => createLocalApi({ token }), /API_TOKEN_REQUIRED/);
   for (const port of [-1, 65536, NaN, 1.5]) await assert.rejects(startLocalApi({ token, port }), /INVALID_PORT/);
+});
+
+for (const [label, columns, error] of [
+  ['unmapped', [{ before: 'id', after: 'customer_id' }], 'SCHEMA_UNMAPPED'],
+  ['ambiguous', [{ before: 'id', after: 'customer_id' }, { before: 'name', after: 'customer_id' }], 'AMBIGUOUS_SCHEMA_MAPPING'],
+  ['unknown', [{ before: 'id', after: 'PRIVATE_HEADER' }], 'UNKNOWN_MAPPING_COLUMN'],
+]) test(`both transports reject ${label} mapping without sensitive values`, async t => {
+  const args = { ...mappedArgs, mapping: { ...mappedArgs.mapping, columns } };
+  const dispatch = session(); await dispatch(initialize); await dispatch(initialized);
+  const m = await dispatch(rpc(2, 'tools/call', { name: 'trueflow_compare', arguments: args }));
+  assert.equal(m.result.isError, true); assert.ok(JSON.stringify(m).includes(error)); assert.ok(!JSON.stringify(m).includes('PRIVATE_HEADER'));
+  const { port } = await local(t), h = await http(port, '/v1/tools/trueflow_compare', { body: JSON.stringify(args) });
+  assert.equal(h.status, 422); assert.ok(JSON.stringify(h.body).includes(error)); assert.ok(!JSON.stringify(h.body).includes('PRIVATE_HEADER'));
+});
+test('mapping schema is closed in discovery and actual invocation', async () => {
+  const schema = listTools().find(t => t.name === 'trueflow_compare').inputSchema.properties.mapping;
+  assert.equal(schema.additionalProperties, false); assert.equal(schema.properties.columns.items.additionalProperties, false);
+  await assert.rejects(callTool('trueflow_compare', { ...mappedArgs, mapping: { ...mappedArgs.mapping, path: '/private' } }), /INVALID_ARGUMENTS/);
 });

@@ -4,7 +4,7 @@
 <body>
 <a class="skip" href="#sources">Skip to workspace</a>
 <div class="shell">
-<header><div class="brand"><span class="mark" aria-hidden="true">tf/</span><span>MyTools <b>TrueFlow</b><small>DATA WORKBENCH · 0.2</small></span></div><div class="header-actions"><a href="MyTools.html" data-i18n="toolbox"></a><span class="badge" data-i18n="local"></span><label class="sr-only" for="language" data-i18n="language"></label><select id="language"><option value="en">English</option><option value="it">Italiano</option><option value="es">Español</option></select></div></header>
+<header><div class="brand"><span class="mark" aria-hidden="true">tf/</span><span>MyTools <b>TrueFlow</b><small>DATA WORKBENCH · 0.4</small></span></div><div class="header-actions"><a href="MyTools.html" data-i18n="toolbox"></a><span class="badge" data-i18n="local"></span><label class="sr-only" for="language" data-i18n="language"></label><select id="language"><option value="en">English</option><option value="it">Italiano</option><option value="es">Español</option></select></div></header>
 <section class="hero"><p class="eyebrow">MYTOOLS / INDEPENDENT PROJECTS / 01</p><h1 data-i18n="title"></h1><p data-i18n="intro"></p><div class="actions"><button id="demo" class="secondary" data-i18n="demo"></button><button id="clear" class="quiet" data-i18n="clear"></button></div></section>
 <main>
 <section id="sources" class="sources">
@@ -21,6 +21,12 @@
 <button id="add" data-i18n="add"></button><div class="actions"><button id="reset-recipe" class="quiet" data-i18n="resetRecipe"></button><button id="save-recipe" class="quiet" data-i18n="saveRecipe"></button></div><label for="recipe-file" data-i18n="importRecipe"></label><input id="recipe-file" type="file" accept=".json"><p class="hint" data-i18n="recipeWarning"></p>
 </aside>
 <section class="panel outputs"><h2 data-i18n="results"></h2><label for="compare-key" data-i18n="compareKey"></label><select id="compare-key"></select><p class="hint" data-i18n="noComparison"></p>
+<details id="mapping-panel"><summary data-i18n="mappingTitle"></summary>
+<label class="review"><input id="mapping-enabled" type="checkbox"><span data-i18n="mappingEnable"></span></label>
+<p class="hint" data-i18n="mappingHint"></p><div id="mapping-columns"></div><p id="mapping-summary" class="hint" aria-live="polite"></p>
+<div class="actions"><button id="reset-mapping" class="quiet" data-i18n="mappingReset"></button><button id="save-mapping" class="secondary" disabled data-i18n="mappingSave"></button></div>
+<label for="mapping-file" data-i18n="mappingImport"></label><input id="mapping-file" type="file" accept=".json"><p class="hint" data-i18n="mappingWarning"></p>
+</details>
 <div id="results" hidden>
 <div class="metrics" id="metrics"></div>
 <div class="section-title"><h3 data-i18n="preview"></h3><label class="sr-only" for="preview-source" data-i18n="preview"></label><select id="preview-source"><option value="a" data-i18n="previewA"></option><option value="b" data-i18n="previewB"></option></select></div><p class="hint" data-i18n="previewLimit"></p><div class="table-scroll" id="preview"></div>
@@ -32,6 +38,6 @@
 </section></div>
 <aside class="warning" data-i18n="warning"></aside>
 </main>
-<section class="principles"><p data-i18n="privacy"></p><p data-i18n="license"></p></section><footer><span>© 2026 Denys Heba · TrueFlow 0.2</span><a href="https://github.com/HebaDenys/MyTools/tree/main/projects/trueflow" target="_blank" rel="noopener noreferrer" data-i18n="source"></a></footer><details class="license"><summary data-i18n="licenseFull"></summary><pre>__LICENSE__</pre></details>
+<section class="principles"><p data-i18n="privacy"></p><p data-i18n="license"></p></section><footer><span>© 2026 Denys Heba · TrueFlow 0.4</span><a href="https://github.com/HebaDenys/MyTools/tree/main/projects/trueflow" target="_blank" rel="noopener noreferrer" data-i18n="source"></a></footer><details class="license"><summary data-i18n="licenseFull"></summary><pre>__LICENSE__</pre></details>
 </div><script>__SCRIPT__</script>
 </body></html>
