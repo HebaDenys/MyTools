@@ -1,10 +1,10 @@
 {
   "name": "@hebadenys/mytools",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "license": "SEE LICENSE IN LICENSE",
-  "description": "Local-first toolbox. Free personal use; paid business licensing.",
+  "description": "Independent local-first applications and a shared toolbox. Personal-free, business-paid.",
   "author": "Denys Heba",
   "engines": { "node": ">=22" },
   "scripts": {

@@ -13,9 +13,9 @@ if not re.fullmatch(r'\d+\.\d+\.\d+', version):
 dist = root / 'dist'
 archive = dist / f'MyTools-v{version}.zip'
 with ZipFile(archive, 'w', ZIP_DEFLATED) as bundle:
-    for name in ['MyTools.html', 'LICENSE', 'NOTICE', 'COMMERCIAL.md', 'SECURITY.md']:
+    for name in ['MyTools.html', 'TrueFlow.html', 'LICENSE', 'NOTICE', 'COMMERCIAL.md', 'SECURITY.md']:
         bundle.write(dist / name, name)
-artifacts = [dist / 'MyTools.html', archive]
+artifacts = [dist / 'MyTools.html', dist / 'TrueFlow.html', archive]
 checksums = ''.join(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n' for path in artifacts)
 (dist / 'SHA256SUMS.txt').write_text(checksums, encoding='utf-8')
 print(f'Packaged {archive.name} and SHA256SUMS.txt')

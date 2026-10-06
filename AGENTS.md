@@ -16,13 +16,24 @@ revoke valid grants on earlier separately distributed versions retroactively.
 Do not claim this is OSI open source. Never invent a price, accept a commercial
 contract for Denys, charge a user, or claim a checkout/payment service is active.
 
+## Product direction
+
+Read docs/PRODUCT_VISION.md. The toolbox is the foundation, not the end product.
+Prioritize complete user workflows in independent applications over accumulating
+formatters and converters. TrueFlow is the first shipping application; TrueCase
+and Privacy Studio are planned, not implemented. Do not advertise roadmap items
+as working features. Ship one coherent milestone at a time with a runnable demo,
+actual exports, honest limits and regression tests. Counts of tools, files or tests
+are not a substitute for a useful outcome.
+
 ## Every iteration
 
 1. Read current README, roadmap, relevant code/tests, PRs, issues and actual CI.
 2. Fix broken CI, security or regressions before adding features.
 3. Make one bounded improvement on a dedicated branch; add regression tests.
 4. Run `npm run validate`. Test UI changes in a browser when possible. Inspect
-   the built app, not only source modules. Report exactly what was executed.
+   the built app, not only source modules. For TrueFlow run test/browser_trueflow.py
+   when Playwright is available. Report exactly what was executed.
 5. Open a focused PR. Integrate only low-risk first-party changes with passing
    checks on the exact current SHA. Leave a PR open if verification is blocked.
 6. Verify the contribution licensing grant before merging outside code.
