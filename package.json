@@ -1,6 +1,6 @@
 {
   "name": "@hebadenys/mytools",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "license": "SEE LICENSE IN LICENSE",
@@ -15,7 +15,9 @@
     "test": "node scripts/build.mjs && node --test",
     "validate": "npm run check && npm test",
     "start": "node scripts/build.mjs && node scripts/serve.mjs",
-    "package": "python3 scripts/package.py"
+    "package": "python3 scripts/package.py",
+    "mcp": "node adapters/local/mcp.mjs",
+    "api": "node adapters/local/http.mjs"
   },
   "repository": {
     "type": "git",

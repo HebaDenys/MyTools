@@ -9,6 +9,9 @@ larger count of utility pages. Fix regressions and unsafe exports first.
 - v0.2.0: TrueFlow independent data workbench: import, diagnose, recipes, keyed
   comparison, review, real exports and CLI. See its README for exact boundaries.
 
+- v0.3.0: shared MCP stdio/local HTTP contracts, ten callable operations, bounded
+  authenticated loopback API, and guarded merged-branch maintenance.
+
 ## Next milestone: make TrueFlow easier to trust on real archives
 
 1. Improve actionable error messages and affected-record inspection without
