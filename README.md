@@ -9,7 +9,7 @@ professional use, including internal use.** See [LICENSE](LICENSE) and
 
 ## Use it
 
-Download the complete `MyTools-v0.4.0.zip` from [Releases](https://github.com/HebaDenys/MyTools/releases),
+Download the complete `MyTools-v0.5.0.zip` from [Releases](https://github.com/HebaDenys/MyTools/releases),
 extract it and open `MyTools.html` for the catalog or `TrueFlow.html` for the data
 workbench. Keep both HTML files in the same folder for navigation between them.
 Each app is self-contained: no installation, account, CDN, AI subscription or
@@ -18,7 +18,7 @@ runtime network calls. A release exists only after publishing succeeds.
 ## MCP and local API
 
 The same engines are callable from MCP clients and programs. Use the repository
-or the separate `MyTools-server-v0.4.0.zip` release asset (Node.js 22+):
+or the separate `MyTools-server-v0.5.0.zip` release asset (Node.js 22+):
 
 ```sh
 node adapters/local/mcp.mjs   # MCP stdio; configure this command in your client
@@ -47,6 +47,12 @@ TrueFlow, select the original B counterparts of A, and save/import the mapping.
 Mapping precedes the recipe; all columns must match one-to-one. The same mapping
 file works with `--mapping` in the CLI and `mapping` in MCP/API `trueflow_compare`.
 See [the mapped example](projects/trueflow/README.md#different-column-names).
+
+When keys are repeated/empty or a required-value step fails, TrueFlow now lists
+original record locations, the first conflicting record and the failing gate.
+Export a diagnostic without cell values, correct the input or recipe, and rerun;
+no record is silently dropped. The same details are available through the CLI
+with `--diagnostics-json` and as structured MCP/API errors.
 
 Click **Load a synthetic example** to complete a real workflow immediately.
 Expected comparison: **1 added, 1 removed, 1 changed, 2 unchanged**.

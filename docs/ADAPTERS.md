@@ -189,3 +189,46 @@ Malformed contract shapes return `INVALID_ARGUMENTS`. Use `trueflow_profile` to
 inspect header names when diagnosing a mismatch. Both transports and OpenAPI use
 the existing shared registry; no second registry or protocol revision was added.
 The local-execution/client-privacy and paid-business-license boundaries above apply.
+
+## Structured validation failures (v0.5.0)
+
+No new operation or input flag is needed. `trueflow_run` and `trueflow_compare`
+retain their existing success shapes and error codes. Missing/repeated keys and
+missing required values additionally return a bounded diagnostic with original
+record numbers, first duplicate occurrences and 1-based column positions, not
+cell values, key values, header names or filesystem paths.
+
+HTTP remains an error (422), not partial successful data:
+
+```json
+{
+  "error": "DUPLICATE_KEY: record 3",
+  "diagnostic": {
+    "format": "mytools.trueflow.validation", "version": 1,
+    "source": "a", "check": "unique", "step": null,
+    "totalIssues": 1, "truncated": false,
+    "issues": [{"code":"DUPLICATE_KEY","record":3,"firstRecord":2,"columns":[1]}]
+  }
+}
+```
+
+OpenAPI defines the closed `components.schemas.TrueFlowValidation` contract.
+MCP retains `isError: true` and the original error code in its first text block;
+a second text block serializes the entire error object and `structuredContent`
+contains that same object. Generic errors without a diagnostic keep the original
+shape. No MCP revision or other capability has been added; this uses the existing
+2025-11-25 tool error/structured-content mechanisms.
+
+`source` is `a`/`b` during comparison or `input` during `trueflow_run`. A failing
+recipe has its 1-based `step`; comparison-key validation has null. Only the first
+failing dataset/gate is reported. At most 100 invalid rows are listed; `totalIssues`
+counts all invalid rows at that gate and `truncated` says when the list is capped.
+Each repeated row points to its first nonempty occurrence; the first itself is
+not counted as invalid. Empty keys are separate failures. Column positions use the
+schema at that gate, after any mapping or preceding transformation. Record numbers
+always identify original logical CSV/JSON records, not physical lines.
+
+After correcting source/recipe, invoke the same operation again. Nothing is
+silently repaired, merged, removed or persisted. Earlier partial data is not
+returned on validation failure. Existing auth, Host/Origin checks, limits and
+client/model privacy warnings still apply; metadata can also be sensitive.

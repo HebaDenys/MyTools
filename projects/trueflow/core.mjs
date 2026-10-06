@@ -135,7 +135,7 @@ export function validateRecipe(recipe) {
   for (const step of recipe.steps) {
     if (!object(step) || typeof step.type !== 'string' || !Object.hasOwn(fields, step.type)) fail('UNKNOWN_OPERATION');
     exactKeys(step, ['type', ...fields[step.type]]);
-    if (step.columns) validColumns(step.columns);
+    if (Object.hasOwn(step, 'columns')) validColumns(step.columns);
     for (const key of ['from', 'to', 'column']) if (Object.hasOwn(step, key) && (typeof step[key] !== 'string' || !step[key].trim() || step[key].length > 200)) fail('INVALID_RECIPE');
     if (step.type === 'filter' && (!['eq', 'neq', 'contains'].includes(step.operator) || typeof step.value !== 'string' || step.value.length > 1000)) fail('INVALID_RECIPE');
   }
@@ -147,17 +147,38 @@ export function readRecipe(text) {
   return validateRecipe(value);
 }
 export const emptyRecipe = () => ({ format: 'mytools.trueflow.recipe', version: 1, steps: [] });
-function ensureKeys(data, ids) {
-  const seen = new Set();
-  for (let i = 0; i < data.rows.length; i++) {
-    if (ids.some(j => blank(data.rows[i][j]))) fail('EMPTY_KEY', `record ${data.sourceRows[i]}`);
-    const key = keyFor(data.rows[i], ids);
-    if (seen.has(key)) fail('DUPLICATE_KEY', `record ${data.sourceRows[i]}`);
-    seen.add(key);
+// Only diagnostics minted here can cross transport/logging boundaries. Never copy
+// arbitrary Error properties, parser messages, cell values or header names.
+const validationErrors = new WeakMap();
+export const VALIDATION_ISSUE_LIMIT = 100;
+export function validationDiagnostic(error) {
+  const diagnostic = validationErrors.get(error);
+  return diagnostic ? structuredClone(diagnostic) : null;
+}
+function assertValidRows(data, ids, check, source = 'input', step = null) {
+  const seen = new Map(), issues = []; let totalIssues = 0;
+  const recordIssue = (code, row, columns, firstRecord = null) => {
+    totalIssues++;
+    if (issues.length < VALIDATION_ISSUE_LIMIT) issues.push({ code, record: data.sourceRows[row], firstRecord, columns: columns.map(i => i + 1) });
+  };
+  for (let row = 0; row < data.rows.length; row++) {
+    const missing = ids.filter(i => blank(data.rows[row][i]));
+    if (missing.length) { recordIssue(check === 'unique' ? 'EMPTY_KEY' : 'REQUIRED_VALUE', row, missing); continue; }
+    if (check === 'unique') {
+      const key = keyFor(data.rows[row], ids);
+      if (seen.has(key)) recordIssue('DUPLICATE_KEY', row, ids, seen.get(key));
+      else seen.set(key, data.sourceRows[row]);
+    }
   }
+  if (!totalIssues) return;
+  const first = issues[0], error = new Error(`${first.code}: record ${first.record}`);
+  validationErrors.set(error, { format: 'mytools.trueflow.validation', version: 1,
+    source, check, step, totalIssues, issues, truncated: totalIssues > issues.length });
+  throw error;
 }
 /** Every run starts from a copy of the original. Recipes are data, never executable code. */
-export function runRecipe(original, recipe) {
+export function runRecipe(original, recipe, source = 'input') {
+  if (!['input', 'a', 'b'].includes(source)) fail('INVALID_SOURCE');
   table(original.columns, original.rows, original.sourceRows);
   const validated = validateRecipe(recipe);
   let data = table([...original.columns], original.rows.map(row => [...row]), [...original.sourceRows]);
@@ -190,9 +211,8 @@ export function runRecipe(original, recipe) {
       const [i] = indices(data, [step.column]);
       retain(row => step.operator === 'eq' ? row[i] === step.value : step.operator === 'neq' ? row[i] !== step.value : row[i].includes(step.value));
     } else if (step.type === 'require') {
-      const bad = data.rows.findIndex(row => ids.some(i => blank(row[i])));
-      if (bad !== -1) fail('REQUIRED_VALUE', `record ${data.sourceRows[bad]}`);
-    } else if (step.type === 'unique') ensureKeys(data, ids);
+      assertValidRows(data, ids, 'require', source, index + 1);
+    } else if (step.type === 'unique') assertValidRows(data, ids, 'unique', source, index + 1);
     journal.push({ step: index + 1, operation: step.type, rowsBefore: before, rowsAfter: data.rows.length, removedRows: before - data.rows.length, changedCells });
   }
   return { data, journal };
@@ -245,7 +265,7 @@ export function reconcile(before, after, keys) {
   table(before.columns, before.rows, before.sourceRows); table(after.columns, after.rows, after.sourceRows);
   if (before.columns.length !== after.columns.length || before.columns.some(c => !after.columns.includes(c))) fail('SCHEMA_MISMATCH');
   const leftIds = indices(before, keys), rightIds = indices(after, keys);
-  ensureKeys(before, leftIds); ensureKeys(after, rightIds);
+  assertValidRows(before, leftIds, 'unique', 'a'); assertValidRows(after, rightIds, 'unique', 'b');
   const positions = before.columns.map(c => after.columns.indexOf(c));
   const right = new Map(after.rows.map((row, i) => [keyFor(row, rightIds), i]));
   const summary = { added: 0, removed: 0, changed: 0, unchanged: 0 }, changes = [];

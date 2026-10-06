@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-MyTools-Personal-1.0
-import { LIMITS, parseData, profile, emptyRecipe, readRecipe, validateRecipe, runRecipe, reconcile, exportCSV, exportJSON, emptyMapping, readMapping, planSchemaMapping, applySchemaMapping } from './core.mjs';
+import { LIMITS, parseData, profile, emptyRecipe, readRecipe, validateRecipe, runRecipe, reconcile, exportCSV, exportJSON, emptyMapping, readMapping, planSchemaMapping, applySchemaMapping, validationDiagnostic } from './core.mjs';
 import { COPY } from './i18n.mjs';
 const $ = id => document.getElementById(id);
 let lang = Object.hasOwn(COPY, navigator.language?.slice(0, 2)) ? navigator.language.slice(0, 2) : 'en';
-let recipe = emptyRecipe(), result = null, mapping = emptyMapping(), mappingHeaders = null;
+let recipe = emptyRecipe(), result = null, mapping = emptyMapping(), mappingHeaders = null, diagnostic = null;
 const revision = { a: 0, b: 0, recipe: 0, mapping: 0 };
 const operations = ['trim', 'normalize', 'lower', 'upper', 'redact', 'dropEmpty', 'dedupe', 'select', 'rename', 'filter', 'require', 'unique'];
 const t = key => COPY[lang][key] ?? key;
@@ -11,6 +11,7 @@ const el = (tag, text) => { const node = document.createElement(tag); if (text !
 function message(text, error = false) { $('status').textContent = text; $('status').classList.toggle('error', error); }
 function exportState() { for (const id of ['export-csv', 'export-json', 'export-report']) $(id).disabled = !result || !$('review').checked; }
 function invalidate() {
+  diagnostic = null; $('validation-panel').hidden = true; $('validation-issues').replaceChildren(); $('export-validation').disabled = true;
   result = null; $('results').hidden = true; $('review').checked = false; exportState();
   for (const id of ['preview', 'diagnostics', 'journal', 'diff', 'metrics', 'diff-metrics']) $(id).replaceChildren();
   message('');
@@ -51,6 +52,7 @@ function translate() {
   $('compare-key').value = oldKey; renderSteps();
   if (mappingHeaders) renderMapping();
   if (result) renderResults();
+  if (diagnostic) renderValidation();
 }
 function drawTable(id, headers, rows) {
   const table = el('table'), head = el('thead'), hr = el('tr'), body = el('tbody');
@@ -92,20 +94,45 @@ function analyze() {
     mappingHeaders = originalB ? [originalA, originalB].map(data => ({ columns: [...data.columns], rows: [], sourceRows: [] })) : null;
     renderMapping();
     // A supplies canonical names. Mapping happens BEFORE recipes, never by sequential renames.
-    const a = runRecipe(originalA, recipe);
+    const a = runRecipe(originalA, recipe, 'a');
     options($('columns'), a.data.columns);
     options($('compare-key'), a.data.columns, a.data.columns, t('noKey'));
     if ($('mapping-enabled').checked && !originalB) throw new Error('MAPPING_REQUIRES_B');
     const mappedB = originalB && $('mapping-enabled').checked ? applySchemaMapping(originalA, originalB, mapping) : originalB;
-    const b = mappedB ? runRecipe(mappedB, recipe) : null;
+    const b = mappedB ? runRecipe(mappedB, recipe, 'b') : null;
     options($('columns'), a.data.columns);
     options($('compare-key'), a.data.columns, a.data.columns, t('noKey'));
     const key = $('compare-key').value;
     const comparison = b && key ? reconcile(a.data, b.data, [key]) : null;
     result = { schemaMapping: originalB && $('mapping-enabled').checked ? planSchemaMapping(originalA, originalB, mapping) : null, a: { ...a, stats: profile(a.data) }, b: b ? { ...b, stats: profile(b.data) } : null, comparison };
     renderResults(); message(t('ready'));
-  } catch (error) { invalidate(); message(`${t('error')}: ${error.message}`, true); }
+  } catch (error) {
+    invalidate(); diagnostic = validationDiagnostic(error);
+    if (diagnostic) renderValidation();
+    else message(`${t('error')}: ${error.message}`, true);
+  }
 }
+// Human guidance uses trusted structured locations, never parses machine error text.
+// Keep the transport messages compatible with the last published v0.4.0 release.
+function validationSummary() {
+  const first = diagnostic.issues[0];
+  const source = diagnostic.source === 'input' ? t('validationCurrent') : `${t('validationSource')} ${diagnostic.source.toUpperCase()}`;
+  const template = first.code === 'DUPLICATE_KEY' ? t('validationDuplicateSummary')
+    : first.code === 'EMPTY_KEY' ? t('validationEmptySummary') : t('validationRequiredSummary');
+  const values = { source, first: first.firstRecord, record: first.record, columns: first.columns.join(', ') };
+  return `${t('error')}: ${first.code} — ${template.replace(/\{([a-z]+)\}/g, (_, key) => values[key] ?? '')}`;
+}
+function renderValidation() {
+  if (!diagnostic) return;
+  $('validation-panel').hidden = false; $('export-validation').disabled = false;
+  message(validationSummary(), true);
+  $('validation-context').textContent = `${t('validationSource')}: ${diagnostic.source.toUpperCase()} · ${t('validationCheck')}: ${t(diagnostic.check)} · ${t('step')}: ${diagnostic.step ?? t('validationComparison')}`;
+  $('validation-count').textContent = `${t('validationCount')}: ${diagnostic.totalIssues} · ${t('validationShown')}: ${diagnostic.issues.length}${diagnostic.truncated ? ` · ${t('validationTruncated')}` : ''}`;
+  drawTable('validation-issues', [t('validationReason'), t('record'), t('validationFirst'), t('validationColumns')], diagnostic.issues.map(i => [t(i.code), i.record, i.firstRecord, i.columns.join(', ')]));
+}
+$('export-validation').addEventListener('click', () => {
+  if (diagnostic) download(JSON.stringify(diagnostic, null, 2), 'trueflow-validation.json');
+});
 function download(text, name, type = 'application/json') {
   const url = URL.createObjectURL(new Blob([text], { type })); const link = el('a');
   link.href = url; link.download = name; document.body.append(link); link.click(); link.remove();
@@ -206,7 +233,7 @@ $('recipe-file').addEventListener('change', async event => {
   const token = ++revision.recipe, file = event.target.files[0]; invalidate();
   if (!file) return;
   try { const imported = readRecipe(await loadFile(file, 65536)); if (token !== revision.recipe) return; invalidate(); recipe = imported; renderSteps(); message(t('imported')); }
-  catch (error) { if (token === revision.recipe) message(`${t('error')}: ${error.message}`, true); }
+  catch (error) { if (token === revision.recipe) { invalidate(); message(`${t('error')}: ${error.message}`, true); } }
 });
 $('clear').addEventListener('click', () => {
   for (const id of ['a', 'b']) { revision[id]++; $(`input-${id}`).value = ''; $(`file-${id}`).value = ''; }

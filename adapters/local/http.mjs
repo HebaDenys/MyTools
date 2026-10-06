@@ -3,7 +3,7 @@
 import { createServer } from 'node:http';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
-import { listTools, callTool, openApi, LICENSE_NOTICE, MESSAGE_LIMIT } from './registry.mjs';
+import { listTools, callTool, openApi, LICENSE_NOTICE, MESSAGE_LIMIT, toolFailure } from './registry.mjs';
 const digest = value => createHash('sha256').update(value).digest();
 export function createLocalApi({ token } = {}) {
   if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{32,256}$/.test(token)) throw new Error('API_TOKEN_REQUIRED');
@@ -27,7 +27,7 @@ export function createLocalApi({ token } = {}) {
       try { args = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks, size))); }
       catch { send(400, { error: 'INVALID_JSON' }); return; }
       try { send(200, { result: await callTool(match[1], args) }); }
-      catch (e) { send(e.code === 'UNKNOWN_TOOL' ? 404 : e.code === 'INVALID_ARGUMENTS' ? 400 : 422, { error: e.code ?? 'OPERATION_FAILED' }); }
+      catch (e) { send(e.code === 'UNKNOWN_TOOL' ? 404 : e.code === 'INVALID_ARGUMENTS' ? 400 : 422, toolFailure(e)); }
     } catch { if (!res.headersSent && !res.destroyed) send(400, { error: 'REQUEST_ABORTED' }); }
   });
   server.maxConnections = 16; server.maxHeadersCount = 32; server.setTimeout(10000, socket => socket.destroy());
