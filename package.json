@@ -1,12 +1,14 @@
 {
   "name": "@hebadenys/mytools",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "license": "SEE LICENSE IN LICENSE",
   "description": "Independent local-first applications and a shared toolbox. Personal-free, business-paid.",
   "author": "Denys Heba",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "check": "node scripts/check.mjs",
     "build": "node scripts/build.mjs",
@@ -15,5 +17,8 @@
     "start": "node scripts/build.mjs && node scripts/serve.mjs",
     "package": "python3 scripts/package.py"
   },
-  "repository": { "type": "git", "url": "https://github.com/HebaDenys/MyTools.git" }
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HebaDenys/MyTools.git"
+  }
 }
