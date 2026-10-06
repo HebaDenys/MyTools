@@ -9,11 +9,28 @@ professional use, including internal use.** See [LICENSE](LICENSE) and
 
 ## Use it
 
-Download the complete `MyTools-v0.2.0.zip` from [Releases](https://github.com/HebaDenys/MyTools/releases),
+Download the complete `MyTools-v0.3.0.zip` from [Releases](https://github.com/HebaDenys/MyTools/releases),
 extract it and open `MyTools.html` for the catalog or `TrueFlow.html` for the data
 workbench. Keep both HTML files in the same folder for navigation between them.
 Each app is self-contained: no installation, account, CDN, AI subscription or
 runtime network calls. A release exists only after publishing succeeds.
+
+## MCP and local API
+
+The same engines are callable from MCP clients and programs. Use the repository
+or the separate `MyTools-server-v0.3.0.zip` release asset (Node.js 22+):
+
+```sh
+node adapters/local/mcp.mjs   # MCP stdio; configure this command in your client
+node adapters/local/http.mjs  # authenticated loopback API; token required
+```
+
+Read [setup, contracts and privacy limits](docs/ADAPTERS.md). Ten operations cover
+the seven utility families and TrueFlow profiling, recipes and reconciliation.
+The HTTP API is opt-in and binds only localhost; it is not public hosting or an
+HTTP MCP endpoint. The standalone browser apps still make no runtime requests.
+An AI client may send tool inputs/results to its provider: local execution alone
+does not guarantee private AI use. Business licensing applies to these interfaces too.
 
 ## First independent application: TrueFlow
 
@@ -60,7 +77,7 @@ The shared browser UI is available in English, Italian and Spanish. Inputs are
 not stored in cookies, browser storage, URLs or application logs. Changing a tool
 clears the workspace. Clipboard contents and exported files are outside the app's
 control. A compromised browser, extension or operating system can still read data.
-The app has no upload endpoint, analytics, service worker or remote license check.
+The standalone browser app has no upload endpoint, analytics, service worker or remote license check.
 If someone hosts the static files, their server may log page requests; use the
 downloaded build to avoid contacting a host while opening the app.
 
@@ -68,6 +85,7 @@ downloaded build to avoid contacting a host while opening the app.
 
 ```text
 apps/toolbox/          shared browser catalog and workspace
+adapters/local/       MCP stdio, authenticated loopback HTTP, shared contracts
 packages/truescrub/   reusable redaction module
 packages/essentials/  small, independently testable utilities
 projects/trueflow/    complete data workbench: UI, core, CLI and fixtures
@@ -116,3 +134,5 @@ monolitica. Elaborazione locale, nessun account e nessun abbonamento AI.
 Un repositorio para varias herramientas y proyectos, con módulos independientes.
 Procesamiento local, sin cuentas ni suscripciones de IA.
 **Uso privado gratuito; uso empresarial y profesional de pago, incluso interno.**
+
+Merged branch cleanup runs on main updates; see [branch maintenance](docs/BRANCH_MAINTENANCE.md).

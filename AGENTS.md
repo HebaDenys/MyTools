@@ -65,3 +65,19 @@ Do not claim a release, deployment, CI pass or merge until verified. A local tes
 pass does not imply GitHub CI passed. Notify Denys in Italian only for material
 improvements, relevant PRs/merges, new risks or new actionable blockers. Do not
 repeat old blockers every day or generate empty commits to look productive.
+
+## Explicitly authorized maintenance and programmatic access
+
+Denys requested deletion of merged branches and MCP/API access on 6 October 2026.
+The cleanup workflow is the narrow exception to the no-deletion rule: only verified
+merged, unchanged, unprotected heads, never main/open-PR heads or unfinished work.
+Preserve its advertised-SHA guard, protected-name checks and no-force behavior.
+See docs/BRANCH_MAINTENANCE.md. Do not claim the native admin setting was enabled.
+
+New callable tool engines should also have entries in adapters/local/registry.mjs,
+closed JSON schemas and tests covering both transports. Use the same pure engines,
+not duplicate implementations. Keep stdio protocol-only on stdout and HTTP opt-in,
+authenticated and bound to 127.0.0.1. No path/URL reads, shell, remote exposure,
+telemetry or persistence capabilities. Runtime auth tokens must never be committed
+or logged. Local execution does not stop a client from sending data to a model;
+preserve that warning and the personal-free/business-paid policy in the adapters.

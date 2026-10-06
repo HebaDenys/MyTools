@@ -29,6 +29,9 @@ jobs:
           node-version: ${{ matrix.node }}
           package-manager-cache: false
       - run: npm run validate
+      - name: Verify extracted server release package
+        if: matrix.node == '22'
+        run: npm run package && python3 test/server_package.py
       - if: matrix.node == '22'
         run: git rev-parse HEAD > dist/BUILD_COMMIT.txt
       - name: Save verifiable source and offline build for inspection
@@ -41,6 +44,7 @@ jobs:
           include-hidden-files: true
           path: |
             apps/
+            adapters/
             packages/
             scripts/
             test/
@@ -106,4 +110,4 @@ jobs:
           fi
           gh release create "$TAG" --target "$GITHUB_SHA" --title "MyTools $TAG" \
             --notes-file docs/RELEASE_NOTES.md \
-            dist/MyTools.html dist/TrueFlow.html "dist/MyTools-$TAG.zip" dist/SHA256SUMS.txt
+            dist/MyTools.html dist/TrueFlow.html "dist/MyTools-$TAG.zip" "dist/MyTools-server-$TAG.zip" dist/SHA256SUMS.txt

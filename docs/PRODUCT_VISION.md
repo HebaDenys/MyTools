@@ -71,3 +71,11 @@ A specific person can finish a real task from input to usable exported result.
 The demo works, failure cases are explicit, originals remain safe, test results
 are recorded honestly, and the release has actual build artifacts. A roadmap,
 new folder, extra button, impressive architecture or high test count is not enough.
+
+## Programmatic access
+
+The same engines should be usable through the UI, MCP and a typed local API.
+The first adapters live in adapters/local, with one shared registry and input
+contracts. Extend real workflows through those interfaces without duplicating
+logic. Public network hosting, external connectors and unattended file access are
+not implied. License and privacy boundaries apply equally to all entrypoints.
