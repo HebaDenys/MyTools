@@ -24,7 +24,7 @@ for (const name of ['LICENSE', 'NOTICE', 'COMMERCIAL.md', 'SECURITY.md']) await 
 console.log('Built dist/MyTools.html and licensing documents.');
 
 // Independent project: share licensing/build guarantees, not application state.
-const flowNames = 'LIMITS, parseData, profile, emptyRecipe, readRecipe, validateRecipe, runRecipe, reconcile, exportCSV, exportJSON';
+const flowNames = 'LIMITS, parseData, profile, emptyRecipe, readRecipe, validateRecipe, runRecipe, reconcile, exportCSV, exportJSON, emptyMapping, readMapping, planSchemaMapping, applySchemaMapping';
 const flowApp = (await read('projects/trueflow/app.mjs')).replace(/^import .* from ['"][^'"]+['"];\n/gm, '');
 if (/^import /m.test(flowApp)) throw new Error('Unsupported TrueFlow import.');
 const flowScript = `'use strict';\n(() => {\nconst { ${flowNames} } = ${wrapped(await read('projects/trueflow/core.mjs'), flowNames)};\n${withoutExports(await read('projects/trueflow/i18n.mjs'))}\n${flowApp}\n})();\n`;

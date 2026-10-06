@@ -1,25 +1,24 @@
-# MyTools v0.3.0 — MCP and authenticated local API
+# MyTools v0.4.0 — compare exports with different column names
 
-Ten callable operations reuse the existing engines: TrueScrub, JSON, Base64,
-link cleanup, text, passwords, SHA-256 text/bytes, TrueFlow profiling, recipe
-execution and keyed reconciliation. One registry supplies both transports and
-the OpenAPI 3.1 contract. No third-party runtime dependencies were added.
+TrueFlow now supports explicit, reusable schema mappings from original B column
+names to A, before running the shared recipe. The browser offers column selectors,
+unmatched-column diagnostics, mapping import/download, reviewed canonical B
+exports and a value-free mapping record in the diagnostic report. CLI `--mapping`
+and MCP/API `trueflow_compare.mapping` consume the same versioned JSON format.
 
-MCP uses bounded stdio with explicit 2025-11-25 version negotiation and tools-only
-capabilities. The HTTP API binds only 127.0.0.1 and requires a runtime bearer token;
-Origin/Host checks, request limits, safe errors and no payload logging are tested.
-It is not a public API service or MCP Streamable HTTP. AI clients may still send
-inputs/results to their providers; use the offline UI for data they must not see.
+No silent column removal or fuzzy matching. Duplicate sources/targets, unknown
+names, incomplete mappings, unsupported versions and extra fields are rejected.
+Renames happen simultaneously and preserve source positions and exact cell text.
+Existing unmapped calls retain their prior behavior. A failed late source-file
+import now also clears results and mapping metadata from a subsequent analysis.
 
-The separate server ZIP includes actual Node entrypoints, engine modules and
-setup instructions. The existing browser ZIP remains self-contained and offline.
-New API requests do not read arbitrary paths, fetch URLs or save output files.
+Synthetic core, CLI, browser, real stdio and authenticated HTTP regressions cover
+the full workflow. The extracted server ZIP is tested with mapped comparisons.
+Read the actual CI run/PR for verification results; this file does not assert a
+successful release before the publishing workflow completes.
 
-Merged PR branch cleanup now runs after main updates and can sweep historical
-merged branches. It retains unmerged/advanced/protected/open-PR branches and uses
-a guarded ordinary Git deletion, not force-pushing or rewriting history.
-
-Verification must be read from the actual current CI run, not inferred from this
-file. See docs/ADAPTERS.md and docs/BRANCH_MAINTENANCE.md for exact scope and limits.
-Private personal use stays free; business/professional use requires paid licensing.
-LICENSE and COMMERCIAL.md are unchanged. No checkout or commercial price added.
+No new runtime dependencies, remote requests, file-read API capabilities, logging,
+telemetry, persistence, public hosting or protocol revision. Existing size and
+privacy limitations still apply; clients may send inputs/results to their models.
+Private personal use is free; business/professional use requires paid licensing.
+LICENSE and COMMERCIAL.md are unchanged. TrueCase and Privacy Studio remain planned.

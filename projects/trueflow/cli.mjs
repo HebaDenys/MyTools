@@ -3,7 +3,7 @@
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { extname } from 'node:path';
-import { LIMITS, parseData, emptyRecipe, readRecipe, runRecipe, profile, reconcile, exportCSV, exportJSON } from './core.mjs';
+import { LIMITS, parseData, emptyRecipe, readRecipe, runRecipe, profile, reconcile, exportCSV, exportJSON, readMapping, applySchemaMapping, planSchemaMapping } from './core.mjs';
 async function readBounded(path, limit = LIMITS.bytes) {
   const info = await stat(path);
   if (!info.isFile() || info.size > limit) throw new Error('INPUT_TOO_LARGE_OR_NOT_A_FILE');
@@ -13,15 +13,15 @@ async function readBounded(path, limit = LIMITS.bytes) {
 }
 try {
   const { values, positionals } = parseArgs({ allowPositionals: true, options: {
-    recipe: { type: 'string' }, compare: { type: 'string' }, key: { type: 'string', multiple: true },
+    recipe: { type: 'string' }, mapping: { type: 'string' }, compare: { type: 'string' }, key: { type: 'string', multiple: true },
     output: { type: 'string' }, report: { type: 'string' }, delimiter: { type: 'string' }, help: { type: 'boolean' },
   } });
   if (values.help) {
-    console.log('TrueFlow: node projects/trueflow/cli.mjs input.csv [--recipe recipe.json] [--compare after.csv --key id] [--output cleaned.csv|cleaned.json] [--report report.json] [--delimiter comma|semicolon|tab]\nRepeat --key for composite keys. The same recipe applies to both inputs. UTF-8 only. Existing files are never overwritten. Default stdout is a diagnostic report without cell values. CSV guards alter formula-like cells; JSON preserves cell text. Private personal use is free; business/professional use requires a paid license.');
+    console.log('TrueFlow: node projects/trueflow/cli.mjs input.csv [--recipe recipe.json] [--compare after.csv --key id --mapping mapping.json] [--output cleaned.csv|cleaned.json] [--report report.json] [--delimiter comma|semicolon|tab]\nRepeat --key for composite keys. Mapping aligns original B headers to A before the same recipe applies to both inputs; no columns are silently discarded. UTF-8 only. Existing files are never overwritten. Default stdout is a diagnostic report without cell values. CSV guards alter formula-like cells; JSON preserves cell text. Private personal use is free; business/professional use requires a paid license.');
   } else {
     if (positionals.length !== 1) throw new Error('ONE_INPUT_REQUIRED');
     if (values.compare && !values.key?.length) throw new Error('COMPARISON_KEY_REQUIRED');
-    if (values.key?.length && !values.compare) throw new Error('COMPARE_INPUT_REQUIRED');
+    if ((values.key?.length || values.mapping) && !values.compare) throw new Error('COMPARE_INPUT_REQUIRED');
     const delimiters = { comma: ',', semicolon: ';', tab: '\t' };
     if (values.delimiter && !Object.hasOwn(delimiters, values.delimiter)) throw new Error('INVALID_DELIMITER');
     const load = async path => {
@@ -30,9 +30,12 @@ try {
       return parseData(await readBounded(path), extension.slice(1), delimiters[values.delimiter ?? 'comma']);
     };
     const recipe = values.recipe ? readRecipe(await readBounded(values.recipe, 65536)) : emptyRecipe();
-    const a = runRecipe(await load(positionals[0]), recipe);
-    const b = values.compare ? runRecipe(await load(values.compare), recipe) : null;
+    const originalA = await load(positionals[0]), originalB = values.compare ? await load(values.compare) : null;
+    const mapping = values.mapping ? readMapping(await readBounded(values.mapping, 65536)) : null;
+    const a = runRecipe(originalA, recipe);
+    const b = originalB ? runRecipe(mapping ? applySchemaMapping(originalA, originalB, mapping) : originalB, recipe) : null;
     const report = { format: 'mytools.trueflow.report', version: 1, a: { profile: profile(a.data), journal: a.journal }, b: b ? { profile: profile(b.data), journal: b.journal } : null, comparison: b ? reconcile(a.data, b.data, values.key) : null };
+    if (mapping) report.schemaMapping = planSchemaMapping(originalA, originalB, mapping);
     let output;
     if (values.output) {
       const extension = extname(values.output).toLowerCase();

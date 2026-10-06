@@ -94,9 +94,9 @@ real downloads, local uploads, stale-result protection, language switching and a
 `pip install playwright==1.57.0` and `playwright install chromium`.
 
 The development container blocks `file:` navigation by administrator policy.
-Local verification therefore used `--in-memory --chromium /usr/bin/chromium`:
-31 browser assertions passed, but that run does not verify file navigation or
-relative app links. CI is configured to run the direct-file variant; inspect its
+Use `--in-memory --chromium /usr/bin/chromium` only as an explicit fallback:
+that mode does not verify file navigation or relative app links. Check current
+CI and PR results for the actual mode and number of executed assertions. CI is configured to run the direct-file variant; inspect its
 actual result before claiming that variant passed.
 
 ## Format and security references
@@ -107,3 +107,47 @@ actual result before claiming that variant passed.
   spreadsheet-formula risks, mitigations and their limitations.
 
 The implementation is original MyTools code; these references are not copied code.
+
+## Different column names
+
+Enable **Compare different column names** in the browser, run once to inspect
+headers, then choose B counterparts for the original A columns. A remains the
+canonical schema. Unassigned, exactly identical names match automatically;
+there is no case-insensitive, fuzzy or value-based matching. Explicit pairs take
+precedence. Unmatched A/B columns are displayed and block mapped output. No input
+column is silently dropped. Disable mapping for independent original A/B previews.
+
+Save/import the mapping as a separate versioned JSON file (64 KiB maximum,
+100 pairs). The same file is accepted by the CLI and its object by MCP/API:
+
+```json
+{"format":"mytools.trueflow.mapping","version":1,"columns":[
+  {"before":"id","after":"customer_id"},
+  {"before":"name","after":"label"}
+]}
+```
+
+Only original header names appear in this file, not record values. Browser Save
+includes all resolved pairs, including identical names. Renames are applied
+simultaneously, so swapping two columns cannot overwrite an intermediate name.
+B is aligned **before** the common recipe; recipe steps and comparison keys use
+A names (or the names produced by subsequent recipe renames). Comparison/report
+locations still refer to the original source record numbers. B exports use the
+canonical A headers; original B bytes are never rewritten.
+
+Runnable synthetic example, from the repository root:
+
+```sh
+node projects/trueflow/cli.mjs projects/trueflow/examples/before.csv \
+  --compare projects/trueflow/examples/after-renamed.csv --key id \
+  --mapping projects/trueflow/examples/mapping.json \
+  --recipe projects/trueflow/examples/recipe.json --report mapped-report.json
+```
+
+Expected: **1 added, 1 removed, 1 changed, 2 unchanged**. The report includes
+resolved mapping pairs and counts/locations, not record values. Existing output
+files are not overwritten. `--mapping` without `--compare` is rejected.
+Mapping is opt-in; existing calls without it retain their prior behavior.
+Unknown names, duplicate targets/sources, unsupported versions or unrecognized
+fields are rejected. Mapping files contain data, never executable expressions.
+Headers may themselves be sensitive: review mapping/report files before sharing.

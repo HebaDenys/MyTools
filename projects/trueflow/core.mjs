@@ -197,6 +197,49 @@ export function runRecipe(original, recipe) {
   }
   return { data, journal };
 }
+/** Versioned, value-free correspondence from original B headers to original A headers. */
+export const emptyMapping = () => ({ format: 'mytools.trueflow.mapping', version: 1, columns: [] });
+export function validateMapping(mapping) {
+  // Do not reuse recipe errors: callers need a stable mapping-specific failure code.
+  const exact = (value, keys) => object(value) && Object.keys(value).length === keys.length && keys.every(k => Object.hasOwn(value, k));
+  if (!exact(mapping, ['format', 'version', 'columns']) || mapping.format !== 'mytools.trueflow.mapping' || mapping.version !== 1 || !Array.isArray(mapping.columns) || mapping.columns.length > LIMITS.columns) fail('INVALID_SCHEMA_MAPPING');
+  const left = new Set(), right = new Set();
+  for (const pair of mapping.columns) {
+    if (!exact(pair, ['before', 'after']) || [pair.before, pair.after].some(v => typeof v !== 'string' || !v.trim() || v.length > 200)) fail('INVALID_SCHEMA_MAPPING');
+    if (left.has(pair.before) || right.has(pair.after)) fail('AMBIGUOUS_SCHEMA_MAPPING');
+    left.add(pair.before); right.add(pair.after);
+  }
+  return { format: mapping.format, version: 1, columns: mapping.columns.map(p => ({ ...p })) };
+}
+export function readMapping(text) {
+  let mapping;
+  try { mapping = JSON.parse(boundedText(text, 65536)); } catch { fail('INVALID_SCHEMA_MAPPING'); }
+  return validateMapping(mapping);
+}
+/** Explicit pairs take priority; only remaining exactly equal names match automatically. */
+export function planSchemaMapping(before, after, mapping = emptyMapping()) {
+  table(before.columns, before.rows, before.sourceRows); table(after.columns, after.rows, after.sourceRows);
+  const validated = validateMapping(mapping), byBefore = new Map(), usedAfter = new Set();
+  for (const pair of validated.columns) {
+    if (!before.columns.includes(pair.before) || !after.columns.includes(pair.after)) fail('UNKNOWN_MAPPING_COLUMN');
+    byBefore.set(pair.before, pair.after); usedAfter.add(pair.after);
+  }
+  for (const name of before.columns) if (!byBefore.has(name) && after.columns.includes(name) && !usedAfter.has(name)) {
+    byBefore.set(name, name); usedAfter.add(name);
+  }
+  return {
+    pairs: before.columns.filter(name => byBefore.has(name)).map(name => ({ before: name, after: byBefore.get(name) })),
+    unmatchedBefore: before.columns.filter(name => !byBefore.has(name)),
+    unmatchedAfter: after.columns.filter(name => !usedAfter.has(name)),
+  };
+}
+/** Align B without mutating either source. No dropping unmatched columns or type conversion. */
+export function applySchemaMapping(before, after, mapping) {
+  const plan = planSchemaMapping(before, after, mapping);
+  if (plan.unmatchedBefore.length || plan.unmatchedAfter.length) fail('SCHEMA_UNMAPPED');
+  const positions = plan.pairs.map(pair => after.columns.indexOf(pair.after));
+  return table([...before.columns], after.rows.map(row => positions.map(i => row[i])), [...after.sourceRows]);
+}
 /** Compare by explicit unique keys, not row order. Refuse ambiguous/missing keys. */
 export function reconcile(before, after, keys) {
   table(before.columns, before.rows, before.sourceRows); table(after.columns, after.rows, after.sourceRows);

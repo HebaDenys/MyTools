@@ -2,7 +2,7 @@
 // Copyright 2026 Denys Heba. Shared contracts for MCP and the loopback API.
 import { scrub, CATEGORIES } from '../../packages/truescrub/index.mjs';
 import { formatJson, encodeBase64, decodeBase64, cleanLink, deduplicateLines, textStats, generatePassword, sha256 } from '../../packages/essentials/index.mjs';
-import { parseData, profile, emptyRecipe, runRecipe, reconcile, exportCSV, exportJSON } from '../../projects/trueflow/core.mjs';
+import { parseData, profile, emptyRecipe, runRecipe, reconcile, exportCSV, exportJSON, applySchemaMapping } from '../../projects/trueflow/core.mjs';
 export const MESSAGE_LIMIT = 2 * 1024 * 1024;
 export const RESULT_LIMIT = 512 * 1024;
 export const LICENSE_NOTICE = 'Private personal use is free. Business/professional use requires a paid license from Denys Heba. See LICENSE and COMMERCIAL.md.';
@@ -18,6 +18,7 @@ const dataset = obj({ text: { ...str(524288), description: 'Dataset contents, ma
 const steps = ['trim', 'normalize', 'lower', 'upper', 'redact', 'dropEmpty', 'dedupe', 'select', 'require', 'unique'].map(type => obj({ type: { const: type }, columns }));
 steps.push(obj({ type: { const: 'rename' }, from: str(200), to: str(200) }), obj({ type: { const: 'filter' }, column: str(200), operator: choice('eq', 'neq', 'contains'), value: str(1000) }));
 const recipe = obj({ format: { const: 'mytools.trueflow.recipe' }, version: { const: 1 }, steps: array({ oneOf: steps }, 30) });
+const mapping = obj({ format: { const: 'mytools.trueflow.mapping' }, version: { const: 1 }, columns: array(obj({ before: { ...str(200), minLength: 1 }, after: { ...str(200), minLength: 1 } }), 100) });
 const parse = source => parseData(source.text, source.format ?? 'csv', source.delimiter ?? ',');
 const pipeline = (source, r) => runRecipe(parse(source), r ?? emptyRecipe());
 const entries = [
@@ -38,7 +39,11 @@ const entries = [
     const output = format === 'csv' ? exportCSV(data) : { text: exportJSON(data), protectedCells: 0 };
     return { format, ...output, profile: profile(data), journal, warnings: ['REVIEW_REQUIRED', ...(format === 'csv' ? ['CSV_GUARD_CHANGES_VALUES', 'SPREADSHEETS_MAY_REINTERPRET_VALUES'] : ['ALL_CELLS_ARE_TEXT'])] };
   }],
-  ['trueflow_compare', 'Apply the same recipe to two archives and compare by explicit unique keys. Return counts/locations, not cell values. Reject ambiguous keys.', obj({ before: dataset, after: dataset, keys: columns, recipe }, ['before', 'after', 'keys']), a => reconcile(pipeline(a.before, a.recipe).data, pipeline(a.after, a.recipe).data, a.keys)],
+  ['trueflow_compare', 'Optionally map original B headers to A before the same recipe and unique-key comparison. All columns must match one-to-one; no fuzzy matching. Return counts/locations, not cell values.', obj({ before: dataset, after: dataset, keys: columns, recipe, mapping }, ['before', 'after', 'keys']), a => {
+    const before = parse(a.before), after = parse(a.after);
+    const aligned = a.mapping === undefined ? after : applySchemaMapping(before, after, a.mapping);
+    return reconcile(runRecipe(before, a.recipe ?? emptyRecipe()).data, runRecipe(aligned, a.recipe ?? emptyRecipe()).data, a.keys);
+  }],
 ];
 const registry = new Map(entries.map(([name, description, inputSchema, run]) => [name, { name, description, inputSchema, run }]));
 /** Validator for precisely the closed schema subset authored above, not arbitrary schemas. */
@@ -68,7 +73,7 @@ export async function callTool(name, args = {}) {
   } catch (error) {
     if (error instanceof ToolError) throw error;
     // Never return parser exception text: it may contain source data.
-    const safe = /^(?:CSV_WIDTH|CSV_UNCLOSED_QUOTE|CSV_UNEXPECTED_QUOTE|CSV_AFTER_QUOTE|DUPLICATE_KEY|EMPTY_KEY|SCHEMA_MISMATCH|REQUIRED_VALUE|UNKNOWN_COLUMN|DUPLICATE_COLUMN_NAME|INVALID_JSON|DUPLICATE_JSON_KEY|FLAT_JSON_REQUIRED|TABLE_LIMIT|INPUT_TOO_LARGE|CSV_HEADER_COLLISION)(?:: record \d+)?$/;
+    const safe = /^(?:CSV_WIDTH|CSV_UNCLOSED_QUOTE|CSV_UNEXPECTED_QUOTE|CSV_AFTER_QUOTE|DUPLICATE_KEY|EMPTY_KEY|SCHEMA_MISMATCH|SCHEMA_UNMAPPED|INVALID_SCHEMA_MAPPING|AMBIGUOUS_SCHEMA_MAPPING|UNKNOWN_MAPPING_COLUMN|REQUIRED_VALUE|UNKNOWN_COLUMN|DUPLICATE_COLUMN_NAME|INVALID_JSON|DUPLICATE_JSON_KEY|FLAT_JSON_REQUIRED|TABLE_LIMIT|INPUT_TOO_LARGE|CSV_HEADER_COLLISION)(?:: record \d+)?$/;
     fail(safe.test(error.message) ? error.message : 'INVALID_DATA');
   }
 }
