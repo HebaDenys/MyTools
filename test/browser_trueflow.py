@@ -104,6 +104,12 @@ with sync_playwright() as p:
     page.locator('#input-a').fill('value\n"broken')
     page.locator('#run').click()
     check('Malformed CSV clears outputs and blocks export', 'CSV_UNCLOSED_QUOTE' in page.locator('#status').inner_text() and page.locator('#export-csv').is_disabled())
+    check('Malformed CSV exposes logical and physical source location', page.locator('#validation-panel').is_visible() and '2' in page.locator('#validation-count').inner_text() and page.locator('#validation-issues tbody tr').count() == 1)
+    with page.expect_download() as info:
+        page.locator('#export-validation').click()
+    parse_diagnostic_text = Path(info.value.path()).read_text()
+    parse_diagnostic = json.loads(parse_diagnostic_text)
+    check('Parser diagnostic download is value-free', parse_diagnostic['format'] == 'mytools.trueflow.parse' and parse_diagnostic['record'] == 2 and parse_diagnostic['line'] == 2 and parse_diagnostic['column'] == 1 and 'broken' not in parse_diagnostic_text)
     # Delayed file read: edits must supersede a pending import.
     page.locator('#clear').click()
     page.evaluate('''() => { window.originalRead = File.prototype.arrayBuffer; File.prototype.arrayBuffer = async function() { const data = await window.originalRead.call(this); return new Promise(resolve => { window.finishRead = () => resolve(data); }); }; }''')
