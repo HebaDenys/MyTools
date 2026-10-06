@@ -45,7 +45,7 @@ for (const [name, args] of [
 ]) test(`invalid adapter input ${name} ${JSON.stringify(args).slice(0, 50)}`, async () => assert.rejects(callTool(name, args), /^(?:Error: )?(?:UNKNOWN_TOOL|INVALID_ARGUMENTS)/));
 test('data errors omit private text, while preserving safe conflict record numbers', async () => {
   await assert.rejects(callTool('json_format', { text: 'PRIVATE_MALFORMED' }), e => !e.message.includes('PRIVATE_MALFORMED') && e.code === 'INVALID_DATA');
-  await assert.rejects(callTool('trueflow_compare', { before: { text: 'id\nPRIVATE_KEY\nPRIVATE_KEY' }, after: { text: 'id\nPRIVATE_KEY' }, keys: ['id'] }), /DUPLICATE_KEY: record 3/);
+  await assert.rejects(callTool('trueflow_compare', { before: { text: 'id\nPRIVATE_KEY\nPRIVATE_KEY' }, after: { text: 'id\nPRIVATE_KEY' }, keys: ['id'] }), /DUPLICATE_KEY: A records 2,3/);
 });
 test('oversized output is refused rather than returned partially', async () => {
   await assert.rejects(callTool('json_format', { text: '['.repeat(100) + Array(10000).fill('1').join(',') + ']'.repeat(100) }), /RESULT_TOO_LARGE/);
@@ -125,6 +125,14 @@ test('HTTP no filesystem/network routes, unknown tool, schema and data errors', 
   for (const path of ['/etc/passwd', '/v1/tools/sha256?path=secret', '/mcp', '/v1/tools/__proto__']) assert.equal((await http(port, path)).status, 404);
   assert.equal((await http(port, '/v1/tools/sha256', { body: '{"path":"/etc/passwd"}' })).status, 400);
   const r = await http(port, '/v1/tools/json_format', { body: '{"text":"PRIVATE_DATA"}' }); assert.equal(r.status, 422); assert.ok(!JSON.stringify(r.body).includes('PRIVATE_DATA'));
+});
+test('MCP and HTTP comparison errors expose side and conflicting records, never key values', async t => {
+  const args = { before: { text: 'id,name\nPRIVATE_KEY,A\nPRIVATE_KEY,B' }, after: { text: 'id,name\nPRIVATE_KEY,A' }, keys: ['id'] };
+  const dispatch = session(); await dispatch(initialize); await dispatch(initialized);
+  const mcpReply = await dispatch(rpc(20, 'tools/call', { name: 'trueflow_compare', arguments: args }));
+  assert.equal(mcpReply.result.isError, true); assert.ok(JSON.stringify(mcpReply).includes('DUPLICATE_KEY: A records 2,3')); assert.ok(!JSON.stringify(mcpReply).includes('PRIVATE_KEY'));
+  const { port } = await local(t), apiReply = await http(port, '/v1/tools/trueflow_compare', { body: JSON.stringify(args) });
+  assert.equal(apiReply.status, 422); assert.ok(JSON.stringify(apiReply.body).includes('DUPLICATE_KEY: A records 2,3')); assert.ok(!JSON.stringify(apiReply.body).includes('PRIVATE_KEY'));
 });
 test('HTTP startup fails closed without valid token or port', async () => {
   for (const token of [undefined, '', 'short', 'x'.repeat(257), ' '.repeat(32)]) assert.throws(() => createLocalApi({ token }), /API_TOKEN_REQUIRED/);

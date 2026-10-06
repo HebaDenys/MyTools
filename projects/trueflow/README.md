@@ -31,7 +31,9 @@ For development run `npm start` from the repository root, then open
   are processed with the same recipe, always starting from unchanged originals.
 - Key-based comparison: added, removed, changed and unchanged records, with
   original record positions and changed column names. Duplicate or empty keys
-  and incompatible schemas are errors, not an excuse to guess a match.
+  and incompatible schemas are errors, not an excuse to guess a match. Duplicate
+  comparison errors identify dataset A/B plus the first conflicting record pair,
+  never the key value, so the source can be fixed without copying data into logs.
 - Review-gated CSV/JSON exports and count/location-only diagnostic reports.
 - English, Italian and Spanish UI; responsive layout; offline batch CLI.
 

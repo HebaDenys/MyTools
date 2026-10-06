@@ -135,7 +135,9 @@ the standalone offline UI for real passwords or data you must not give a model.
 These adapters themselves do not make outbound requests, log payloads/tokens,
 write user files, or upload data. The local HTTP transfer is explicitly initiated
 by the client. Error text contains stable codes and sometimes record numbers,
-not source values. Successful tool results can contain the requested data.
+not source values. Duplicate-key comparison errors identify A/B and the first
+conflicting source-record pair, never the key value. Successful tool results can
+contain the requested data.
 
 There is no UI review checkbox in an API invocation: the caller is responsible
 for review before saving or sharing output. Redaction remains best effort and

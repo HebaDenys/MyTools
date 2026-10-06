@@ -9,6 +9,16 @@ const operations = ['trim', 'normalize', 'lower', 'upper', 'redact', 'dropEmpty'
 const t = key => COPY[lang][key] ?? key;
 const el = (tag, text) => { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; return node; };
 function message(text, error = false) { $('status').textContent = text; $('status').classList.toggle('error', error); }
+function fill(template, values) { return template.replace(/\{([a-z]+)\}/g, (_, key) => values[key] ?? ''); }
+function describeError(error) {
+  const raw = error instanceof Error ? error.message : String(error);
+  let match = /^DUPLICATE_KEY: (?:(A|B) )?records (\d+),(\d+)$/.exec(raw);
+  if (match) return `${t('error')}: ${fill(t('duplicateKeyError'), { source: match[1] ? `${t('dataset')} ${match[1]}` : t('currentDataset'), first: match[2], second: match[3] })}`;
+  match = /^EMPTY_KEY: (?:(A|B) )?record (\d+)$/.exec(raw);
+  if (match) return `${t('error')}: ${fill(t('emptyKeyError'), { source: match[1] ? `${t('dataset')} ${match[1]}` : t('currentDataset'), record: match[2] })}`;
+  return `${t('error')}: ${raw}`;
+}
+function showError(error) { message(describeError(error), true); }
 function exportState() { for (const id of ['export-csv', 'export-json', 'export-report']) $(id).disabled = !result || !$('review').checked; }
 function invalidate() {
   result = null; $('results').hidden = true; $('review').checked = false; exportState();
@@ -104,7 +114,7 @@ function analyze() {
     const comparison = b && key ? reconcile(a.data, b.data, [key]) : null;
     result = { schemaMapping: originalB && $('mapping-enabled').checked ? planSchemaMapping(originalA, originalB, mapping) : null, a: { ...a, stats: profile(a.data) }, b: b ? { ...b, stats: profile(b.data) } : null, comparison };
     renderResults(); message(t('ready'));
-  } catch (error) { invalidate(); message(`${t('error')}: ${error.message}`, true); }
+  } catch (error) { invalidate(); showError(error); }
 }
 function download(text, name, type = 'application/json') {
   const url = URL.createObjectURL(new Blob([text], { type })); const link = el('a');
@@ -126,7 +136,7 @@ for (const id of ['a', 'b']) {
       const text = await loadFile(file); if (token !== revision[id]) return; clearMappingView(); invalidate();
       $(`input-${id}`).value = text;
       $(`format-${id}`).value = /\.json$/i.test(file.name) ? 'json' : /\.tsv$/i.test(file.name) ? 'tsv' : 'csv';
-    } catch (error) { if (token === revision[id]) { clearMappingView(); invalidate(); $(`input-${id}`).value = ''; message(`${t('error')}: ${error.message}`, true); } }
+    } catch (error) { if (token === revision[id]) { clearMappingView(); invalidate(); $(`input-${id}`).value = ''; showError(error); } }
   });
 }
 function clearMappingView() {
@@ -170,7 +180,7 @@ $('save-mapping').addEventListener('click', () => {
     // Persist all resolved pairs, not guesses; round-trip unchanged through CLI and MCP/API.
     download(JSON.stringify({ ...emptyMapping(), columns: plan.pairs }, null, 2), 'trueflow-mapping.json');
     message(t('mappingWarning'));
-  } catch (error) { message(error.message, true); }
+  } catch (error) { showError(error); }
 });
 $('mapping-file').addEventListener('change', async event => {
   const token = ++revision.mapping, file = event.target.files[0]; invalidate();
@@ -179,7 +189,7 @@ $('mapping-file').addEventListener('change', async event => {
     const imported = readMapping(await loadFile(file, 65536));
     if (token !== revision.mapping) return;
     mapping = imported; $('mapping-enabled').checked = true; analyze();
-  } catch (error) { if (token === revision.mapping) { invalidate(); message(`${t('error')}: ${error.message}`, true); } }
+  } catch (error) { if (token === revision.mapping) { invalidate(); showError(error); } }
 });
 $('run').addEventListener('click', analyze);
 $('compare-key').addEventListener('change', analyze);
@@ -198,7 +208,7 @@ $('add').addEventListener('click', () => {
     }
     recipe = validateRecipe({ ...recipe, steps: [...recipe.steps, step] }); revision.recipe++;
     renderSteps(); analyze();
-  } catch (error) { invalidate(); message(`${t('error')}: ${error.message}`, true); }
+  } catch (error) { invalidate(); showError(error); }
 });
 $('reset-recipe').addEventListener('click', () => { recipe = emptyRecipe(); revision.recipe++; invalidate(); renderSteps(); });
 $('save-recipe').addEventListener('click', () => { download(JSON.stringify(recipe, null, 2), 'trueflow-recipe.json'); message(t('recipeWarning')); });
@@ -206,7 +216,7 @@ $('recipe-file').addEventListener('change', async event => {
   const token = ++revision.recipe, file = event.target.files[0]; invalidate();
   if (!file) return;
   try { const imported = readRecipe(await loadFile(file, 65536)); if (token !== revision.recipe) return; invalidate(); recipe = imported; renderSteps(); message(t('imported')); }
-  catch (error) { if (token === revision.recipe) message(`${t('error')}: ${error.message}`, true); }
+  catch (error) { if (token === revision.recipe) showError(error); }
 });
 $('clear').addEventListener('click', () => {
   for (const id of ['a', 'b']) { revision[id]++; $(`input-${id}`).value = ''; $(`file-${id}`).value = ''; }
@@ -223,7 +233,7 @@ $('demo').addEventListener('click', () => {
 $('export-csv').addEventListener('click', () => {
   if (!result || !$('review').checked) return;
   try { const output = exportCSV(selectedResult().data); download(output.text, `trueflow-${$('preview-source').value}.csv`, 'text/csv;charset=utf-8'); message(`${t('downloaded')} ${t('protected')}: ${output.protectedCells}`); }
-  catch (error) { invalidate(); message(`${t('error')}: ${error.message}`, true); }
+  catch (error) { invalidate(); showError(error); }
 });
 $('export-json').addEventListener('click', () => { if (result && $('review').checked) { download(exportJSON(selectedResult().data), `trueflow-${$('preview-source').value}.json`); message(t('downloaded')); } });
 $('export-report').addEventListener('click', () => {

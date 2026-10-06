@@ -63,7 +63,7 @@ test('prototype-looking header names and HTML strings remain plain data', () => 
 test('mapping does not weaken duplicate keys, composite keys or source-record reporting', () => {
   const right = parseCSV('customer_id,label,status\n001,A,active\n001,B,pending');
   const aligned = applySchemaMapping(a, right, map);
-  assert.throws(() => reconcile(a, aligned, ['id']), /DUPLICATE_KEY: record 3/);
+  assert.throws(() => reconcile(a, aligned, ['id']), /DUPLICATE_KEY: B records 2,3/);
   assert.equal(reconcile(a, aligned, ['id', 'status']).summary.changed, 1);
 });
 test('header-only input can be aligned and exported without records', () => {

@@ -9,7 +9,7 @@ professional use, including internal use.** See [LICENSE](LICENSE) and
 
 ## Use it
 
-Download the complete `MyTools-v0.4.0.zip` from [Releases](https://github.com/HebaDenys/MyTools/releases),
+Download the complete `MyTools-v0.4.1.zip` from [Releases](https://github.com/HebaDenys/MyTools/releases),
 extract it and open `MyTools.html` for the catalog or `TrueFlow.html` for the data
 workbench. Keep both HTML files in the same folder for navigation between them.
 Each app is self-contained: no installation, account, CDN, AI subscription or
@@ -18,7 +18,7 @@ runtime network calls. A release exists only after publishing succeeds.
 ## MCP and local API
 
 The same engines are callable from MCP clients and programs. Use the repository
-or the separate `MyTools-server-v0.4.0.zip` release asset (Node.js 22+):
+or the separate `MyTools-server-v0.4.1.zip` release asset (Node.js 22+):
 
 ```sh
 node adapters/local/mcp.mjs   # MCP stdio; configure this command in your client
@@ -41,6 +41,8 @@ transformation recipes, and identifies added, removed and changed records by
 explicit unique keys. It includes a separate three-language browser UI, offline
 CLI, real CSV/JSON downloads and diagnostic reports without cell values. It
 preserves originals and refuses ambiguous comparisons instead of guessing.
+Duplicate-key failures identify A/B and both records in the first conflict while
+omitting the actual key value from UI/CLI/API error text.
 
 For exports with renamed columns, enable **Compare different column names** in
 TrueFlow, select the original B counterparts of A, and save/import the mapping.

@@ -147,13 +147,14 @@ export function readRecipe(text) {
   return validateRecipe(value);
 }
 export const emptyRecipe = () => ({ format: 'mytools.trueflow.recipe', version: 1, steps: [] });
-function ensureKeys(data, ids) {
-  const seen = new Set();
+function ensureKeys(data, ids, side = '') {
+  const seen = new Map();
   for (let i = 0; i < data.rows.length; i++) {
-    if (ids.some(j => blank(data.rows[i][j]))) fail('EMPTY_KEY', `record ${data.sourceRows[i]}`);
-    const key = keyFor(data.rows[i], ids);
-    if (seen.has(key)) fail('DUPLICATE_KEY', `record ${data.sourceRows[i]}`);
-    seen.add(key);
+    const source = side ? `${side} ` : '';
+    if (ids.some(j => blank(data.rows[i][j]))) fail('EMPTY_KEY', `${source}record ${data.sourceRows[i]}`);
+    const key = keyFor(data.rows[i], ids), first = seen.get(key);
+    if (first !== undefined) fail('DUPLICATE_KEY', `${source}records ${data.sourceRows[first]},${data.sourceRows[i]}`);
+    seen.set(key, i);
   }
 }
 /** Every run starts from a copy of the original. Recipes are data, never executable code. */
@@ -245,7 +246,7 @@ export function reconcile(before, after, keys) {
   table(before.columns, before.rows, before.sourceRows); table(after.columns, after.rows, after.sourceRows);
   if (before.columns.length !== after.columns.length || before.columns.some(c => !after.columns.includes(c))) fail('SCHEMA_MISMATCH');
   const leftIds = indices(before, keys), rightIds = indices(after, keys);
-  ensureKeys(before, leftIds); ensureKeys(after, rightIds);
+  ensureKeys(before, leftIds, 'A'); ensureKeys(after, rightIds, 'B');
   const positions = before.columns.map(c => after.columns.indexOf(c));
   const right = new Map(after.rows.map((row, i) => [keyFor(row, rightIds), i]));
   const summary = { added: 0, removed: 0, changed: 0, unchanged: 0 }, changes = [];

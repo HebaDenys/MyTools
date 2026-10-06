@@ -136,6 +136,19 @@ test('reconciliation classifies additions, removals, edits and unchanged rows ir
 test('reconciliation supports composite keys', () => {
   const data = parseCSV('id,region,v\n1,a,x\n1,b,y'); assert.equal(reconcile(data, data, ['id', 'region']).summary.unchanged, 2);
 });
+test('duplicate comparison errors identify both conflicting records and dataset side without key values', () => {
+  const left = parseCSV('id,v\nPRIVATE_KEY,x\nPRIVATE_KEY,y'), right = parseCSV('id,v\nPRIVATE_KEY,x');
+  assert.throws(() => reconcile(left, right, ['id']), error => error.message === 'DUPLICATE_KEY: A records 2,3' && !error.message.includes('PRIVATE_KEY'));
+  assert.throws(() => reconcile(right, left, ['id']), error => error.message === 'DUPLICATE_KEY: B records 2,3' && !error.message.includes('PRIVATE_KEY'));
+});
+test('unique recipe reports the first conflicting record pair without values', () => {
+  const data = parseCSV('id,v\nPRIVATE_KEY,x\nPRIVATE_KEY,y');
+  assert.throws(() => runRecipe(data, recipe({ type: 'unique', columns: ['id'] })), error => error.message === 'DUPLICATE_KEY: records 2,3' && !error.message.includes('PRIVATE_KEY'));
+});
+test('empty comparison keys identify the dataset side and source record', () => {
+  assert.throws(() => reconcile(parseCSV('id,v\n,x'), parseCSV('id,v\n1,x'), ['id']), /EMPTY_KEY: A record 2/);
+  assert.throws(() => reconcile(parseCSV('id,v\n1,x'), parseCSV('id,v\n,x'), ['id']), /EMPTY_KEY: B record 2/);
+});
 for (const [name, before, after, error] of [
   ['duplicate left key', 'id,v\n1,x\n1,y', 'id,v\n1,x', /DUPLICATE_KEY/],
   ['duplicate right key', 'id,v\n1,x', 'id,v\n1,x\n1,y', /DUPLICATE_KEY/],
@@ -182,8 +195,9 @@ test('CLI pipeline, reconciliation, exclusive outputs and sensitive-path-safe er
   const dir = await mkdtemp(join(tmpdir(), 'trueflow-'));
   const cli = (...args) => spawnSync(process.execPath, [join(root, 'projects/trueflow/cli.mjs'), ...args], { encoding: 'utf8' });
   try {
-    const input = join(dir, 'input.csv'), second = join(dir, 'after.csv'), output = join(dir, 'output.json'), recipePath = join(dir, 'recipe.json');
+    const input = join(dir, 'input.csv'), second = join(dir, 'after.csv'), duplicate = join(dir, 'duplicate.csv'), output = join(dir, 'output.json'), recipePath = join(dir, 'recipe.json');
     await writeFile(input, 'id,v\n001, a \n002,b'); await writeFile(second, 'id,v\n001,a\n003,c');
+    await writeFile(duplicate, 'id,v\nPRIVATE_KEY,x\nPRIVATE_KEY,y');
     await writeFile(recipePath, JSON.stringify(recipe({ type: 'trim', columns: ['v'] })));
     let result = cli(input, '--recipe', recipePath, '--compare', second, '--key', 'id', '--output', output);
     assert.equal(result.status, 0, result.stderr); assert.deepEqual(JSON.parse(result.stdout).comparison.summary, { added: 1, removed: 1, changed: 0, unchanged: 1 });
@@ -191,6 +205,8 @@ test('CLI pipeline, reconciliation, exclusive outputs and sensitive-path-safe er
     result = cli(input, '--output', output); assert.equal(result.status, 1); assert.match(result.stderr, /OUTPUT_ALREADY_EXISTS/); assert.ok(!result.stderr.includes(dir));
     result = cli(input, '--output', input); assert.equal(result.status, 1); assert.equal(await readFile(input, 'utf8'), 'id,v\n001, a \n002,b');
     assert.equal(cli(input, '--compare', second).status, 1); assert.equal(cli(input, '--unknown').status, 1);
+    result = cli(input, '--compare', duplicate, '--key', 'id');
+    assert.equal(result.status, 1); assert.match(result.stderr, /DUPLICATE_KEY: B records 2,3/); assert.ok(!result.stderr.includes('PRIVATE_KEY') && !result.stderr.includes(dir));
     result = cli(join(dir, 'sensitive-missing.csv')); assert.equal(result.status, 1); assert.ok(!result.stderr.includes('sensitive-missing'));
     await writeFile(join(dir, 'invalid.csv'), Buffer.from([0xff, 0xfe, 0xff])); assert.match(cli(join(dir, 'invalid.csv')).stderr, /UTF8_REQUIRED/);
     assert.equal(cli('--help').status, 0);

@@ -58,6 +58,6 @@ try {
   }
 } catch (error) {
   // Runtime filesystem messages may contain sensitive paths. Print only stable codes.
-  const message = /^[A-Z][A-Z0-9_]+(?:: record \d+)?$/.test(error.message) ? error.message : error.code ?? 'OPERATION_FAILED';
+  const message = /^[A-Z][A-Z0-9_]+(?:: (?:(?:A|B) )?(?:record \d+|records \d+,\d+))?$/.test(error.message) ? error.message : error.code ?? 'OPERATION_FAILED';
   console.error(`TrueFlow: ${message}`); process.exitCode = 1;
 }
