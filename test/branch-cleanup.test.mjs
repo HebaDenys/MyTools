@@ -6,7 +6,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { candidates, cleanup } from '../scripts/cleanup-branches.mjs';
+import { candidates, cleanup, safeGitDiagnostic } from '../scripts/cleanup-branches.mjs';
 const repository = 'HebaDenys/MyTools', head = 'a'.repeat(40), merge = 'b'.repeat(40);
 const fixture = () => ({ repository, defaultBranch: 'main', branches: [{ name: 'feat/demo', commit: { sha: head }, protected: false }], open: [], closed: [{ number: 1, merged_at: '2026-10-06T00:00:00Z', merge_commit_sha: merge, base: { ref: 'main', repo: { full_name: repository } }, head: { ref: 'feat/demo', sha: head, repo: { full_name: repository } } }] });
 test('unchanged heads of merged same-repo PRs are candidates, also with squash merges', () => assert.deepEqual(candidates(fixture()), [{ branch: 'feat/demo', head, merge, pr: 1 }]));
@@ -50,4 +50,14 @@ test('real git deletion uses the hook and retains a moved remote branch without 
     good(['push', 'origin', 'HEAD:refs/heads/feat/demo']);
     assert.notEqual(remove().status, 0); assert.ok(good(['ls-remote', '--heads', 'origin']).includes(good(['rev-parse', 'HEAD'])));
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+
+test('failed Git operations expose bounded diagnostics but never raw/encoded authorization', () => {
+  const token = 'synthetic-test-credential';
+  const encoded = Buffer.from(`x-access-token:${token}`).toString('base64');
+  const message = safeGitDiagnostic({ status: 1, stderr: `fatal: hook rejected\n${token} ${encoded}\nauthorization: Bearer another-value\nhttps://user:other@github.com/repo\n` }, token);
+  assert.match(message, /hook rejected/);
+  for (const value of [token, encoded, 'another-value', 'user:other']) assert.ok(!message.includes(value));
+  assert.ok(safeGitDiagnostic({ stderr: 'x'.repeat(5000) }, token).length < 1900);
 });
