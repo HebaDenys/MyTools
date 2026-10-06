@@ -197,6 +197,31 @@ export function runRecipe(original, recipe) {
   }
   return { data, journal };
 }
+export function planSchemaMapping(before, after, mappings = []) {
+  table(before.columns, before.rows, before.sourceRows);
+  table(after.columns, after.rows, after.sourceRows);
+  if (!Array.isArray(mappings) || mappings.length > LIMITS.columns) fail('INVALID_SCHEMA_MAPPING');
+  const pairs = [], usedBefore = new Set(), usedAfter = new Set();
+  for (const entry of mappings) {
+    if (!object(entry) || Object.keys(entry).length !== 2 || !Object.hasOwn(entry, 'before') || !Object.hasOwn(entry, 'after')) fail('INVALID_SCHEMA_MAPPING');
+    const beforeName = entry.before, afterName = entry.after;
+    if (typeof beforeName !== 'string' || typeof afterName !== 'string' || !beforeName.trim() || !afterName.trim() || beforeName.length > 200 || afterName.length > 200) fail('INVALID_SCHEMA_MAPPING');
+    if (!before.columns.includes(beforeName) || !after.columns.includes(afterName)) fail('UNKNOWN_COLUMN');
+    if (usedBefore.has(beforeName) || usedAfter.has(afterName)) fail('AMBIGUOUS_SCHEMA_MAPPING');
+    usedBefore.add(beforeName); usedAfter.add(afterName); pairs.push({ before: beforeName, after: afterName });
+  }
+  for (const name of before.columns) if (!usedBefore.has(name) && after.columns.includes(name) && !usedAfter.has(name)) {
+    usedBefore.add(name); usedAfter.add(name); pairs.push({ before: name, after: name });
+  }
+  return { pairs, unmatchedBefore: before.columns.filter(name => !usedBefore.has(name)), unmatchedAfter: after.columns.filter(name => !usedAfter.has(name)) };
+}
+export function applySchemaMapping(before, after, mappings = []) {
+  const plan = planSchemaMapping(before, after, mappings);
+  if (plan.unmatchedBefore.length || plan.unmatchedAfter.length) fail(mappings.length ? 'SCHEMA_UNMAPPED' : 'SCHEMA_MISMATCH');
+  const afterByBefore = new Map(plan.pairs.map(pair => [pair.before, pair.after]));
+  const positions = before.columns.map(name => after.columns.indexOf(afterByBefore.get(name)));
+  return table([...before.columns], after.rows.map(row => positions.map(i => row[i])), [...after.sourceRows]);
+}
 /** Compare by explicit unique keys, not row order. Refuse ambiguous/missing keys. */
 export function reconcile(before, after, keys) {
   table(before.columns, before.rows, before.sourceRows); table(after.columns, after.rows, after.sourceRows);
