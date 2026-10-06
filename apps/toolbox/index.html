@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="MyTools: local-first tools. Free private personal use; paid business licensing.">
+  <meta http-equiv="Content-Security-Policy" content="__CSP__">
+  <link rel="icon" href="data:,">
+  <title>MyTools — a local-first toolbox</title>
+  <style>__STYLE__</style>
+</head>
+<body>
+  <a class="skip" href="#workspace">Skip to workspace</a>
+  <div class="shell">
+    <header>
+      <div class="brand"><span class="mark" aria-hidden="true">m/</span><span>MyTools <small>0.1</small></span></div>
+      <div class="top-actions"><span class="local" data-i18n="local"></span><label class="sr-only" for="language" data-i18n="language"></label><select id="language"><option value="en">English</option><option value="it">Italiano</option><option value="es">Español</option></select></div>
+    </header>
+    <section class="hero"><p class="eyebrow">THE EVERYDAY TOOLBOX</p><h1 data-i18n="title"></h1><p data-i18n="intro"></p></section>
+    <main class="layout">
+      <aside class="sidebar"><label for="search" data-i18n="search"></label><input id="search" type="search" autocomplete="off" spellcheck="false"><nav id="catalog" aria-label="Tools"></nav><p id="no-results" hidden data-i18n="noResults"></p></aside>
+      <section class="workspace" id="workspace" aria-labelledby="tool-title">
+        <div class="tool-heading"><div><p class="eyebrow" id="tool-number"></p><h2 id="tool-title"></h2></div><button id="clear" class="quiet" type="button" data-i18n="clear"></button></div>
+        <p id="tool-description" class="description"></p>
+        <div class="controls"><label for="operation" data-i18n="action"></label><select id="operation"></select><button id="sample" class="quiet" type="button" data-i18n="sample"></button></div>
+        <div id="file-wrap" hidden><label for="file" data-i18n="file"></label><input id="file" type="file"></div>
+        <div class="editors">
+          <div id="input-wrap"><label for="input" data-i18n="input"></label><textarea id="input" maxlength="1048576" rows="10" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-describedby="limit warning"></textarea></div>
+          <div class="result"><label for="output" data-i18n="output"></label><textarea id="output" rows="10" readonly spellcheck="false" autocomplete="off" aria-describedby="warning"></textarea></div>
+        </div>
+        <div id="custom-wrap"><label for="terms" data-i18n="terms"></label><textarea id="terms" rows="2" maxlength="103000" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-describedby="terms-hint"></textarea><small id="terms-hint" data-i18n="termsHint"></small></div>
+        <div class="run-row"><button id="run" type="button" data-i18n="run"></button><small id="limit" data-i18n="limit"></small></div>
+        <p id="status" role="status" aria-live="polite"></p>
+        <label id="review-wrap" class="review"><input id="review" type="checkbox" disabled><span data-i18n="review"></span></label>
+        <div class="export-row"><button id="copy" class="secondary" type="button" disabled data-i18n="copy"></button><button id="download" class="quiet" type="button" disabled data-i18n="download"></button></div>
+        <p id="warning" class="warning"></p>
+      </section>
+    </main>
+    <section class="principles"><p data-i18n="privacy"></p><p data-i18n="licensing"></p></section>
+    <footer><span>© 2026 Denys Heba</span><a href="https://github.com/HebaDenys/MyTools" target="_blank" rel="noopener noreferrer" data-i18n="source"></a><a href="https://github.com/HebaDenys/MyTools/blob/main/COMMERCIAL.md" target="_blank" rel="noopener noreferrer" data-i18n="licenseLink"></a></footer>
+    <details class="license"><summary data-i18n="fullLicense"></summary><pre>__LICENSE__</pre></details>
+  </div>
+  <script>__SCRIPT__</script>
+</body>
+</html>

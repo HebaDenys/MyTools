@@ -1,0 +1,19 @@
+{
+  "name": "@hebadenys/mytools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "SEE LICENSE IN LICENSE",
+  "description": "Local-first toolbox. Free personal use; paid business licensing.",
+  "author": "Denys Heba",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "build": "node scripts/build.mjs",
+    "test": "node scripts/build.mjs && node --test",
+    "validate": "npm run check && npm test",
+    "start": "node scripts/build.mjs && node scripts/serve.mjs",
+    "package": "python3 scripts/package.py"
+  },
+  "repository": { "type": "git", "url": "https://github.com/HebaDenys/MyTools.git" }
+}
