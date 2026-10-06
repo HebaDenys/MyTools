@@ -128,8 +128,8 @@ function renderDiagnostic() {
   const source = diagnostic.source === 'input' ? t('validationCurrent') : `${t('validationSource')} ${diagnostic.source.toUpperCase()}`;
   if (diagnostic.format === 'mytools.trueflow.validation') {
     $('validation-title').textContent = t('validationTitle');
-    $('validation-help').textContent = t('validationHelp');
-    $('validation-privacy').textContent = t('validationPrivacy');
+    document.querySelector('[data-i18n="validationHelp"]').textContent = t('validationHelp');
+    document.querySelector('[data-i18n="validationPrivacy"]').textContent = t('validationPrivacy');
     message(validationSummary(), true);
     $('validation-context').textContent = `${t('validationSource')}: ${diagnostic.source.toUpperCase()} · ${t('validationCheck')}: ${t(diagnostic.check)} · ${t('step')}: ${diagnostic.step ?? t('validationComparison')}`;
     $('validation-count').textContent = `${t('validationCount')}: ${diagnostic.totalIssues} · ${t('validationShown')}: ${diagnostic.issues.length}${diagnostic.truncated ? ` · ${t('validationTruncated')}` : ''}`;
@@ -137,8 +137,8 @@ function renderDiagnostic() {
     return;
   }
   $('validation-title').textContent = t('parseTitle');
-  $('validation-help').textContent = t('parseHelp');
-  $('validation-privacy').textContent = t('parsePrivacy');
+  document.querySelector('[data-i18n="validationHelp"]').textContent = t('parseHelp');
+  document.querySelector('[data-i18n="validationPrivacy"]').textContent = t('parsePrivacy');
   const values = { source, record: diagnostic.record, line: diagnostic.line, column: diagnostic.column };
   const summary = t('parseSummary').replace(/\{([a-z]+)\}/g, (_, key) => values[key] ?? '');
   message(`${t('error')}: ${diagnostic.code} — ${summary}`, true);
