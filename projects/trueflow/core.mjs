@@ -104,22 +104,30 @@ export function parseCSV(input, delimiter = ',', source = 'input', dataFormat = 
   }
   return table(columns, rows);
 }
+function jsonParseFail(code, source, text, record = null, index = null) {
+  const located = Number.isSafeInteger(index) && index >= 0 && index <= text.length ? textLocation(text, index) : { line: null, column: null };
+  parseFail(code, '', { source, dataFormat: 'json', record, line: located.line, column: located.column, expectedColumns: null, actualColumns: null });
+}
 /** Flat JSON records. Number lexemes stay exact text; no numeric round-trip. */
-export function parseJSON(input) {
+export function parseJSON(input, source = 'input') {
+  if (!['input', 'a', 'b'].includes(source)) fail('INVALID_SOURCE');
   const text = boundedText(input);
-  // Check grammar first. Error messages deliberately never include source values.
-  try { JSON.parse(text); } catch { fail('INVALID_JSON'); }
+  // Check grammar first. Engine parser messages are never copied into diagnostics.
+  try { JSON.parse(text); } catch { jsonParseFail('INVALID_JSON', source, text); }
   const tokens = /"(?:\\[\s\S]|[^"\\])*"|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?|[{}\[\]]/g;
-  const stack = []; let rewritten = '', cursor = 0;
+  const stack = []; let rewritten = '', cursor = 0, recordNumber = 0, activeRecord = null;
   for (const match of text.matchAll(tokens)) {
     const token = match[0];
     if (token === '{' || token === '[') {
-      if (stack.length >= 2) fail('FLAT_JSON_REQUIRED');
+      if (stack.length >= 2) jsonParseFail('FLAT_JSON_REQUIRED', source, text, activeRecord, match.index);
+      if (stack.length === 1 && stack[0] === null && token === '{') activeRecord = ++recordNumber;
       stack.push(token === '{' ? new Set() : null);
-    } else if (token === '}' || token === ']') stack.pop();
-    else if (token[0] === '"' && /^\s*:/.test(text.slice(match.index + token.length))) {
+    } else if (token === '}' || token === ']') {
+      const closed = stack.pop();
+      if (closed instanceof Set && stack.length === 1 && stack[0] === null) activeRecord = null;
+    } else if (token[0] === '"' && /^\s*:/.test(text.slice(match.index + token.length))) {
       const keys = stack.at(-1), key = JSON.parse(token);
-      if (keys?.has(key)) fail('DUPLICATE_JSON_KEY');
+      if (keys?.has(key)) jsonParseFail('DUPLICATE_JSON_KEY', source, text, activeRecord, match.index);
       keys?.add(key);
     }
     rewritten += text.slice(cursor, match.index) + (/^-?\d/.test(token) ? JSON.stringify(token) : token);
@@ -127,20 +135,22 @@ export function parseJSON(input) {
   }
   rewritten += text.slice(cursor);
   const records = JSON.parse(rewritten);
-  if (!Array.isArray(records) || !records.length || records.some(r => !object(r))) fail('JSON_RECORDS_REQUIRED');
+  if (!Array.isArray(records) || !records.length) jsonParseFail('JSON_RECORDS_REQUIRED', source, text);
+  const invalidRecord = records.findIndex(r => !object(r));
+  if (invalidRecord !== -1) jsonParseFail('JSON_RECORDS_REQUIRED', source, text, invalidRecord + 1);
   if (records.length > LIMITS.rows) fail('TABLE_LIMIT');
   const columns = [...new Set(records.flatMap(r => Object.keys(r)))];
   validColumns(columns);
-  const rows = records.map(record => columns.map(column => {
+  const rows = records.map((record, row) => columns.map(column => {
     const value = Object.hasOwn(record, column) ? record[column] : null;
     if (value === null) return '';
     if (typeof value === 'string' || typeof value === 'boolean') return String(value);
-    fail('FLAT_JSON_REQUIRED');
+    jsonParseFail('FLAT_JSON_REQUIRED', source, text, row + 1);
   }));
   return table(columns, rows, rows.map((_, i) => i + 1));
 }
 export function parseData(text, format = 'csv', delimiter = ',', source = 'input') {
-  if (format === 'json') return parseJSON(text);
+  if (format === 'json') return parseJSON(text, source);
   if (format === 'tsv') return parseCSV(text, '\t', source, 'tsv');
   if (format === 'csv') return parseCSV(text, delimiter, source, 'csv');
   fail('INVALID_FORMAT');

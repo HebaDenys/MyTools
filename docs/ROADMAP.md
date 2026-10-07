@@ -25,10 +25,16 @@ larger count of utility pages. Fix regressions and unsafe exports first.
   columns, safe diagnostic export and repair-to-export regression coverage.
   CLI/MCP/HTTP parser-error contracts stay unchanged.
 
+- v0.5.2: browser JSON source guidance for malformed syntax and invalid flat-record
+  structure, with safe record/token coordinates for nested values and duplicate
+  keys. Diagnostics omit values, keys and engine parser messages; CLI/MCP/HTTP
+  error contracts stay unchanged.
+
 ## Next milestone: make TrueFlow easier to trust on real archives
 
-1. Key/required-value diagnostics and browser CSV/TSV parser locations are
-   implemented. Next: source guidance for schema/JSON errors without echoing values.
+1. Key/required-value, CSV/TSV location and JSON source/structure diagnostics are
+   implemented. Next: source guidance for invalid headers/schema errors without
+   echoing values or guessing repairs.
 2. Schema mapping is implemented. Next: improve guidance for complex mapping
    conflicts without guessing correspondences or silently dropping columns.
 3. Evaluate cancellable worker-based processing and bounded larger-file support.

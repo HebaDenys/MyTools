@@ -9,7 +9,7 @@ professional use, including internal use.** See [LICENSE](LICENSE) and
 
 ## Use it
 
-Download the complete `MyTools-v0.5.1.zip` from [Releases](https://github.com/HebaDenys/MyTools/releases),
+Download the complete `MyTools-v0.5.2.zip` from [Releases](https://github.com/HebaDenys/MyTools/releases),
 extract it and open `MyTools.html` for the catalog or `TrueFlow.html` for the data
 workbench. Keep both HTML files in the same folder for navigation between them.
 Each app is self-contained: no installation, account, CDN, AI subscription or
@@ -18,7 +18,7 @@ runtime network calls. A release exists only after publishing succeeds.
 ## MCP and local API
 
 The same engines are callable from MCP clients and programs. Use the repository
-or the separate `MyTools-server-v0.5.1.zip` release asset (Node.js 22+):
+or the separate `MyTools-server-v0.5.2.zip` release asset (Node.js 22+):
 
 ```sh
 node adapters/local/mcp.mjs   # MCP stdio; configure this command in your client
@@ -54,10 +54,11 @@ Export a diagnostic without cell values, correct the input or recipe, and rerun;
 no record is silently dropped. The same details are available through the CLI
 with `--diagnostics-json` and as structured MCP/API errors.
 
-Malformed CSV/TSV input now has a browser-only diagnostic download with source,
-logical record and physical line/column. Repair the indicated input and rerun to
-export data; original values are not included in the diagnostic. CLI/MCP/HTTP
-parser errors remain unchanged. See [coordinate semantics](projects/trueflow/README.md#locating-malformed-csvtsv).
+Malformed CSV/TSV input has browser-only source/record/line diagnostics. JSON
+errors now identify the failing dataset too; nested structures and duplicate keys
+include safe record/token coordinates when TrueFlow can derive them without copying
+engine parser text. Diagnostics omit source values and JSON keys. CLI/MCP/HTTP
+error contracts remain unchanged. See [diagnostic semantics](projects/trueflow/README.md#locating-malformed-csvtsv-and-json-structure).
 
 Click **Load a synthetic example** to complete a real workflow immediately.
 Expected comparison: **1 added, 1 removed, 1 changed, 2 unchanged**.

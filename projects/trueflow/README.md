@@ -208,7 +208,7 @@ stdout stays empty. Successful output behavior is unchanged. No extra file read
 capability or automatic persistence was added to MCP/API.
 
 
-## Locating malformed CSV/TSV
+## Locating malformed CSV/TSV and JSON structure
 
 The browser reports `CSV_UNCLOSED_QUOTE`, `CSV_UNEXPECTED_QUOTE`,
 `CSV_AFTER_QUOTE` and `CSV_WIDTH` with the source (A/B), logical record and
@@ -227,8 +227,15 @@ the start of the offending logical record. Width diagnostics also contain expect
 and actual column counts. No automatic repair or silent row removal occurs.
 
 This versioned `mytools.trueflow.parse` diagnostic contains only fixed enum labels,
-numbers and nulls, not cell values, header names, file names or paths. Only the
-browser opts into parser metadata through `validationDiagnostic(error, true)`;
-CLI (including `--diagnostics-json`), MCP and HTTP keep their existing error-code
-responses. Their structured key/required-value diagnostics are unchanged. This
-addition does not locate JSON syntax, invalid headers, schema errors or size limits.
+numbers and nulls, not cell values, header names, JSON keys, file names or paths.
+For JSON, the browser identifies source A/B for malformed syntax, invalid root/record
+shape, nested objects/arrays and duplicate keys. Nested structures and duplicate
+keys also carry the logical record plus token line/column derived from the original
+text. Malformed JSON syntax does **not** expose the JavaScript engine parser message
+or guess a location; root/primitive shape failures may have only source/record.
+
+Only the browser opts into parser metadata through
+`validationDiagnostic(error, true)`; CLI (including `--diagnostics-json`), MCP and
+HTTP keep their existing error-code responses. Their structured key/required-value
+diagnostics are unchanged. Invalid headers, schema errors and size limits still do
+not mint parser diagnostics.

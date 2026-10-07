@@ -136,13 +136,21 @@ function renderDiagnostic() {
     drawTable('validation-issues', [t('validationReason'), t('record'), t('validationFirst'), t('validationColumns')], diagnostic.issues.map(i => [t(i.code), i.record, i.firstRecord, i.columns.join(', ')]));
     return;
   }
-  $('validation-title').textContent = t('parseTitle');
-  document.querySelector('[data-i18n="validationHelp"]').textContent = t('parseHelp');
-  document.querySelector('[data-i18n="validationPrivacy"]').textContent = t('parsePrivacy');
+  const isJSON = diagnostic.dataFormat === 'json';
+  $('validation-title').textContent = t(isJSON ? 'jsonTitle' : 'parseTitle');
+  document.querySelector('[data-i18n="validationHelp"]').textContent = t(isJSON ? 'jsonHelp' : 'parseHelp');
+  document.querySelector('[data-i18n="validationPrivacy"]').textContent = t(isJSON ? 'jsonPrivacy' : 'parsePrivacy');
   const values = { source, record: diagnostic.record, line: diagnostic.line, column: diagnostic.column };
-  const summary = t('parseSummary').replace(/\{([a-z]+)\}/g, (_, key) => values[key] ?? '');
+  const summaryKey = isJSON ? ({ INVALID_JSON: 'jsonInvalidSummary', JSON_RECORDS_REQUIRED: 'jsonRecordsSummary', FLAT_JSON_REQUIRED: 'jsonFlatSummary', DUPLICATE_JSON_KEY: 'jsonDuplicateSummary' }[diagnostic.code] ?? 'jsonInvalidSummary') : 'parseSummary';
+  const summary = t(summaryKey).replace(/\{([a-z]+)\}/g, (_, key) => values[key] ?? '');
   message(`${t('error')}: ${diagnostic.code} — ${summary}`, true);
   $('validation-context').textContent = `${t('validationSource')}: ${diagnostic.source.toUpperCase()} · ${t('parseFormat')}: ${diagnostic.dataFormat.toUpperCase()}`;
+  if (isJSON) {
+    const located = diagnostic.line === null ? '' : ` · ${t('parseLine')}: ${diagnostic.line} · ${t('parseColumn')}: ${diagnostic.column}`;
+    $('validation-count').textContent = diagnostic.record === null ? t('jsonNoRecord') : `${t('record')}: ${diagnostic.record}${located}`;
+    drawTable('validation-issues', [t('validationReason'), t('record'), t('parseLine'), t('parseColumn')], [[diagnostic.code, diagnostic.record, diagnostic.line, diagnostic.column]]);
+    return;
+  }
   const width = diagnostic.expectedColumns === null ? '' : ` · ${t('parseExpected')}: ${diagnostic.expectedColumns} · ${t('parseActual')}: ${diagnostic.actualColumns}`;
   $('validation-count').textContent = `${t('record')}: ${diagnostic.record} · ${t('parseLine')}: ${diagnostic.line} · ${t('parseColumn')}: ${diagnostic.column}${width}`;
   drawTable('validation-issues', [t('validationReason'), t('record'), t('parseLine'), t('parseColumn'), t('parseExpected'), t('parseActual')], [[diagnostic.code, diagnostic.record, diagnostic.line, diagnostic.column, diagnostic.expectedColumns, diagnostic.actualColumns]]);

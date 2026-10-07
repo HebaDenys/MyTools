@@ -89,9 +89,9 @@ test('diagnostics are isolated copies from core errors; arbitrary properties are
   }
   for (const optIn of [undefined, false, 1, 'true']) assert.equal(validationDiagnostic(error, optIn), null);
 });
-test('header/JSON/size failures are not misreported as located CSV syntax errors', () => {
-  for (const [text, format] of [['id,id\nx,y', 'csv'], ['', 'csv'], ['PRIVATE_INVALID', 'json'], ['id\n\0', 'csv'], ['id\n' + 'x'.repeat(LIMITS.bytes), 'csv']]) {
-    assert.equal(validationDiagnostic(failure(() => parseData(text, format)), true), null);
+test('header/size failures are not misreported as located CSV syntax errors', () => {
+  for (const text of ['id,id\nx,y', '', 'id\n\0', 'id\n' + 'x'.repeat(LIMITS.bytes)]) {
+    assert.equal(validationDiagnostic(failure(() => parseData(text, 'csv')), true), null);
   }
 });
 test('valid quoted Unicode and mixed line endings retain exact cell text and record numbering', () => {

@@ -144,6 +144,41 @@ with sync_playwright() as p:
     with page.expect_download() as info:
         page.locator('#export-json').click()
     check('Repairing malformed TSV completes reviewed B export', json.loads(Path(info.value.path()).read_text()) == [{'id': '1', 'v': 'repaired'}])
+    # JSON source guidance: identify A/B and safe structural locations without values.
+    page.locator('#clear').click()
+    page.locator('#language').select_option('en')
+    page.locator('#format-a').select_option('csv')
+    page.locator('#input-a').fill('id,v\n1,ok')
+    page.locator('#format-b').select_option('json')
+    page.locator('#input-b').fill('[{"id":"1","label":"LEAK_MARKER_7"')
+    page.locator('#run').click()
+    check('Malformed JSON identifies B and blocks exports without parser/input text', 'INVALID_JSON' in page.locator('#status').inner_text() and 'Dataset B' in page.locator('#status').inner_text() and 'LEAK_MARKER_7' not in page.locator('#validation-panel').inner_text() and page.locator('#export-json').is_disabled())
+    check('JSON diagnostic context distinguishes source and format', 'B' in page.locator('#validation-context').inner_text() and 'JSON' in page.locator('#validation-context').inner_text() and 'No safe record' in page.locator('#validation-count').inner_text())
+    with page.expect_download() as info:
+        page.locator('#export-validation').click()
+    json_diagnostic_text = Path(info.value.path()).read_text()
+    json_diagnostic = json.loads(json_diagnostic_text)
+    check('Malformed JSON diagnostic download is value-free', json_diagnostic['source'] == 'b' and json_diagnostic['dataFormat'] == 'json' and json_diagnostic['code'] == 'INVALID_JSON' and json_diagnostic['record'] is None and 'LEAK_MARKER_7' not in json_diagnostic_text and 'label' not in json_diagnostic_text)
+    nested_json = '[{"id":"1","nested":{"label":"LEAK_MARKER_8"}}]'
+    page.locator('#input-b').fill(nested_json)
+    page.locator('#run').click()
+    check('Nested JSON reports safe record and coordinates without keys/values', 'FLAT_JSON_REQUIRED' in page.locator('#status').inner_text() and 'Record' in page.locator('#validation-count').inner_text() and 'LEAK_MARKER_8' not in page.locator('#validation-panel').inner_text() and 'nested' not in page.locator('#validation-panel').inner_text())
+    with page.expect_download() as info:
+        page.locator('#export-validation').click()
+    nested_diagnostic_text = Path(info.value.path()).read_text()
+    nested_diagnostic = json.loads(nested_diagnostic_text)
+    check('Nested JSON diagnostic includes record and token location only', nested_diagnostic['record'] == 1 and nested_diagnostic['line'] == 1 and nested_diagnostic['column'] > 1 and 'LEAK_MARKER_8' not in nested_diagnostic_text and 'nested' not in nested_diagnostic_text)
+    for language, title in [('en', 'JSON input needs attention'), ('es', 'El JSON necesita revisión'), ('it', 'Il JSON richiede attenzione')]:
+        page.locator('#language').select_option(language)
+        check(f'JSON guidance remains localized in {language}', title in page.locator('#validation-title').inner_text() and 'JSON' in page.locator('#validation-context').inner_text())
+    page.locator('#input-b').fill('[{"id":"1","v":"repaired"}]')
+    check('Repair clears stale JSON metadata immediately', not page.locator('#validation-panel').is_visible() and page.locator('#export-validation').is_disabled())
+    page.locator('#run').click()
+    page.locator('#preview-source').select_option('b')
+    page.locator('#review').check()
+    with page.expect_download() as info:
+        page.locator('#export-json').click()
+    check('Repairing JSON completes reviewed B export', json.loads(Path(info.value.path()).read_text()) == [{'id': '1', 'v': 'repaired'}])
     # Delayed file read: edits must supersede a pending import.
     page.locator('#clear').click()
     page.evaluate('''() => { window.originalRead = File.prototype.arrayBuffer; File.prototype.arrayBuffer = async function() { const data = await window.originalRead.call(this); return new Promise(resolve => { window.finishRead = () => resolve(data); }); }; }''')
