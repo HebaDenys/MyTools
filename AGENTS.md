@@ -30,13 +30,17 @@ are not a substitute for a useful outcome.
 
 1. Read current README, roadmap, relevant code/tests, PRs, issues and actual CI.
 2. Fix broken CI, security or regressions before adding features.
-3. Make one bounded improvement on a dedicated branch; add regression tests.
+3. For owner-authored routine work, develop directly on `main`: make one bounded
+   improvement, add regression tests, and avoid temporary branches/PRs unless a
+   change genuinely needs isolation, external review, or cannot yet be integrated.
 4. Run `npm run validate`. Test UI changes in a browser when possible. Inspect
    the built app, not only source modules. For TrueFlow run test/browser_trueflow.py
    when Playwright is available. Report exactly what was executed.
-5. Open a focused PR. Integrate only low-risk first-party changes with passing
-   checks on the exact current SHA. Leave a PR open if verification is blocked.
-6. Verify the contribution licensing grant before merging outside code.
+5. Before writing `main`, re-read its current SHA and relevant CI; publish only a
+   tested fast-forward/new commit based on that SHA. After the push, verify GitHub
+   CI on the resulting exact SHA. If verification is blocked, do not claim success.
+6. Verify the contribution licensing grant before integrating outside code. External
+   contributions still require a focused PR and explicit review before entering main.
 
 ## Security and privacy
 
@@ -68,11 +72,13 @@ repeat old blockers every day or generate empty commits to look productive.
 
 ## Explicitly authorized maintenance and programmatic access
 
-Denys requested deletion of merged branches and MCP/API access on 6 October 2026.
-The cleanup workflow is the narrow exception to the no-deletion rule: only verified
-merged, unchanged, unprotected heads, never main/open-PR heads or unfinished work.
-Preserve its advertised-SHA guard, protected-name checks and no-force behavior.
-See docs/BRANCH_MAINTENANCE.md. Do not claim the native admin setting was enabled.
+Denys requested deletion of merged branches and MCP/API access on 6 October 2026,
+and on 7 October 2026 requested a main-first owner workflow instead of accumulating
+temporary branches. The cleanup workflow remains the narrow automatic deletion
+mechanism for PR heads: only verified merged, unchanged, unprotected heads, never
+main/open-PR heads or unfinished work. Preserve its advertised-SHA guard, protected-
+name checks and no-force behavior. See docs/BRANCH_MAINTENANCE.md. Do not claim the
+native admin setting was enabled. Do not create a branch merely to satisfy process.
 
 New callable tool engines should also have entries in adapters/local/registry.mjs,
 closed JSON schemas and tests covering both transports. Use the same pure engines,
