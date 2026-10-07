@@ -6,7 +6,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { candidates, cleanup, retiredCandidates, safeGitDiagnostic } from '../scripts/cleanup-branches.mjs';
+import { candidates, cleanup, safeGitDiagnostic } from '../scripts/cleanup-branches.mjs';
 const repository = 'HebaDenys/MyTools', head = 'a'.repeat(40), merge = 'b'.repeat(40);
 const fixture = () => ({ repository, defaultBranch: 'main', branches: [{ name: 'feat/demo', commit: { sha: head }, protected: false }], open: [], closed: [{ number: 1, merged_at: '2026-10-06T00:00:00Z', merge_commit_sha: merge, base: { ref: 'main', repo: { full_name: repository } }, head: { ref: 'feat/demo', sha: head, repo: { full_name: repository } } }] });
 test('unchanged heads of merged same-repo PRs are candidates, also with squash merges', () => assert.deepEqual(candidates(fixture()), [{ branch: 'feat/demo', head, merge, pr: 1 }]));
@@ -25,21 +25,6 @@ for (const [name, change] of [
 ]) test(`retain ${name}`, () => { const f = fixture(); change(f); assert.deepEqual(candidates(f), []); });
 for (const name of ['main', 'master', 'dev', 'develop', 'qa', 'staging', 'production', 'prod', 'release/1', 'feat/a\ninjection']) test(`retain long-lived/unsafe branch ${JSON.stringify(name)}`, () => {
   const f = fixture(); f.branches[0].name = name; f.closed[0].head.ref = name; assert.deepEqual(candidates(f), []);
-});
-test('retired cleanup selects only exact, unprotected, unused legacy heads', () => {
-  const branches = [
-    { name: 'feat/trueflow-schema-json-diagnostics', commit: { sha: '6a8e1ddc3f25e9aadaeb5a898838d7749b9b9f6d' }, protected: false },
-    { name: 'fix/truescrub-redaction', commit: { sha: '83d1fc96f8b7499cfc2827c2420967a358876a01' }, protected: false },
-  ];
-  assert.deepEqual(retiredCandidates({ branches, open: [] }).map(item => item.branch), ['feat/trueflow-schema-json-diagnostics', 'fix/truescrub-redaction']);
-  branches[0].commit.sha = 'c'.repeat(40);
-  branches[1].protected = true;
-  assert.deepEqual(retiredCandidates({ branches, open: [] }), []);
-});
-test('retired cleanup retains branches referenced by open PRs', () => {
-  const branches = [{ name: 'improve/tool-deep-links', commit: { sha: '6d190740d28c07b65badc17d1d605676da53d8d7' }, protected: false }];
-  assert.deepEqual(retiredCandidates({ branches, open: [{ base: { ref: 'improve/tool-deep-links' } }] }), []);
-  assert.deepEqual(retiredCandidates({ branches, open: [{ head: { ref: 'improve/tool-deep-links', repo: { full_name: repository } } }] }), []);
 });
 test('cleanup refuses non-main/untrusted invocation before requesting any credentials', async () => { await assert.rejects(cleanup({}), /UNAUTHORIZED_CONTEXT/); });
 const hook = fileURLToPath(new URL('../.github/hooks/pre-push', import.meta.url));
