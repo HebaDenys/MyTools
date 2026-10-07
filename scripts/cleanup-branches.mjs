@@ -4,6 +4,20 @@ import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 const sha = value => typeof value === 'string' && /^[a-f0-9]{40}$/.test(value);
+const RETIRED_BRANCHES = Object.freeze([
+  { branch: 'feat/programmatic-interfaces', head: '8b80714319959345c1f4bfdacd198d4de34a0420' },
+  { branch: 'feat/trueflow-schema-json-diagnostics', head: '6a8e1ddc3f25e9aadaeb5a898838d7749b9b9f6d' },
+  { branch: 'fix/truescrub-redaction', head: '83d1fc96f8b7499cfc2827c2420967a358876a01' },
+  { branch: 'improve/tool-deep-links', head: '6d190740d28c07b65badc17d1d605676da53d8d7' },
+]);
+export function retiredCandidates({ branches, open }) {
+  return RETIRED_BRANCHES.flatMap(item => {
+    const branch = branches.find(candidate => candidate.name === item.branch);
+    if (!branch || branch.protected !== false || branch.commit?.sha !== item.head ||
+        open.some(pr => pr.base?.ref === item.branch || (pr.head?.repo?.full_name === 'HebaDenys/MyTools' && pr.head?.ref === item.branch))) return [];
+    return [item];
+  });
+}
 export function candidates({ repository, defaultBranch, branches, open, closed }) {
   const retained = new Set(open.flatMap(pr => [pr.base?.ref, pr.head?.repo?.full_name === repository ? pr.head?.ref : undefined]));
   return branches.flatMap(branch => {
@@ -66,7 +80,20 @@ export async function cleanup(env = process.env) {
     if (result.status !== 0) { console.error(safeGitDiagnostic(result, env.GH_TOKEN)); throw new Error(`BRANCH_DELETE_FAILED_PR_${item.pr}`); }
     console.log(`Deleted merged branch ${item.branch} (PR #${item.pr}, ${item.head}).`); deleted++;
   }
-  console.log(`Deleted ${deleted} verified merged branches; other branches retained.`);
+  for (const item of retiredCandidates({ branches, open })) {
+    const current = await get(`/branches/${encodeURIComponent(item.branch)}`);
+    const freshOpen = await all('/pulls?state=open');
+    if (current.commit?.sha !== item.head || current.protected !== false || freshOpen.some(pr => pr.base?.ref === item.branch || (pr.head?.repo?.full_name === repository && pr.head?.ref === item.branch))) continue;
+    const result = git(['-c', `core.hooksPath=${resolve('.github/hooks')}`, 'push', `https://github.com/${repository}.git`, `:refs/heads/${item.branch}`], {
+      MYTOOLS_DELETE_REF: `refs/heads/${item.branch}`, MYTOOLS_DELETE_SHA: item.head,
+      GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_COUNT: '1',
+      GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
+      GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${env.GH_TOKEN}`).toString('base64')}`,
+    });
+    if (result.status !== 0) { console.error(safeGitDiagnostic(result, env.GH_TOKEN)); throw new Error('BRANCH_DELETE_FAILED_RETIRED'); }
+    console.log(`Deleted explicitly retired branch ${item.branch} (${item.head}).`); deleted++;
+  }
+  console.log(`Deleted ${deleted} verified/retired branches; other branches retained.`);
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try { await cleanup(); }
