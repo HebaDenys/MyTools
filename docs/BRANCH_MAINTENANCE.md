@@ -28,3 +28,20 @@ The workflow is not an administrator setting: events suppressed by GitHub's
 workflow-token recursion rules require a later normal push or manual dispatch.
 Protection/ruleset rejections cause failure rather than being bypassed. Test the
 planner and guarded deletion with `node --test test/branch-cleanup.test.mjs`.
+
+## Main-first owner workflow
+
+Since 7 October 2026, routine first-party changes by Denys/authorized automation
+should normally be developed and committed directly on `main` after local tests and
+a fresh SHA check. Temporary branches and PRs are reserved for work that genuinely
+needs isolation, external review, or cannot yet be integrated safely. This reduces
+stale branch accumulation without weakening validation: every direct-main commit
+still needs the relevant local checks before publication and GitHub CI verification
+on the exact resulting SHA afterward.
+
+External contributions still use PRs so the explicit CONTRIBUTING grant and review
+can be verified. Existing stale branches are not evidence that their code belongs on
+main: superseded/duplicate or known-buggy work must be reviewed and consciously
+discarded or reimplemented, never blindly merged. The cleanup workflow remains
+limited to verified merged PR heads; it does not become a generic branch-deletion
+mechanism.
