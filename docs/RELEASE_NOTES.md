@@ -1,34 +1,28 @@
-# MyTools v0.5.0 — find the records blocking a workflow
+# MyTools v0.5.1 — locate and repair malformed CSV/TSV
 
-TrueFlow now reports original record locations when a comparison key is empty or
-repeated, or a recipe's require/unique validation fails. The browser displays the
-failing dataset/gate, missing column positions and the first occurrence of repeated
-keys. Export safe diagnostic JSON, fix the input/recipe, rerun and review actual
-output. Data exports remain blocked until the workflow succeeds; no automatic
-record deletion or ambiguous matching is introduced.
+TrueFlow's browser diagnostic panel identifies source A/B, logical record,
+physical line and column for unclosed/unexpected quotes, characters after a closing
+quote and incorrect row width. Download the diagnostic, correct the source, rerun
+and export reviewed data. Editing input immediately removes stale diagnostics.
 
-The same bounded diagnostics appear in CLI --diagnostics-json failures, HTTP 422
-responses and MCP isError structuredContent. Old error codes and successful result
-shapes remain unchanged. Only the first failed gate/dataset is inspected, with up
-to 100 listed rows, complete total and an explicit truncation flag. Diagnostic
-locations contain no cell/key values, header names or file paths. Column positions
-refer to the failing schema; record numbers refer to original logical records.
+Locations count Unicode code points, including supplementary characters such as
+emoji. CRLF is one line break, tabs are one column, and a leading BOM is ignored.
+Width errors point to the record start; an unclosed field points to its opening
+quote. Diagnostics contain fixed labels, positions and optional column counts,
+not values, headers or paths. Unsupported format labels are rejected rather than
+copied into diagnostic metadata. English, Italian and Spanish UI are included.
 
-The parallel first-pair conflict work is reconciled into this release: the browser
-status names A/B and both original records, with localized repair guidance. CLI
-stderr, HTTP error text and the first MCP text block deliberately retain v0.4.0
-messages; clients use the additive structured diagnostic for the richer locations.
-There is one validation engine, not two competing error implementations.
+Core regression coverage now exercises each syntax error, quoted multiline input,
+LF/CR/CRLF, Unicode, BOM, TSV, semicolon input, diagnostic isolation and exact
+value exclusion. Browser tests cover localization, real downloads, keyboard/mobile
+use and a malformed-TSV-to-reviewed-export recovery. CLI, real MCP stdio children
+and authenticated HTTP tests verify unchanged parser-error responses.
 
-Also fixes null/falsy recipe columns silently bypassing some operations, and a
-late failed recipe-file import leaving an intervening result exportable.
+Parser locations remain browser-only; CLI/MCP/HTTP error contracts, successful
+outputs, tool count, size limits and the existing key/required-value diagnostics
+are unchanged. No new dependency, network surface, storage or automatic repair.
 
-Tests cover core validation, immutable inputs, filtering/mapping, first-occurrence
-locations, caps, real stdio/HTTP, CLI failure-to-recovery, extracted packages and
-browser uploads/downloads. Read actual CI and PR results, not this file, for the
-verification status. No new runtime dependency, public endpoint, outbound request,
-telemetry, hidden persistence or protocol revision. TrueCase and Privacy Studio
-remain planned. Local client/model handling can still disclose inputs/results.
-
-LICENSE and COMMERCIAL.md remain unchanged: private personal use free; every
-business/professional use requires a paid license. No price or checkout introduced.
+Read the actual PR/CI results for verification; this file does not claim the
+candidate is published. LICENSE and COMMERCIAL.md remain unchanged: private
+personal use free, every business/professional use paid. AI clients can still
+retain or forward inputs/results. TrueCase and Privacy Studio remain planned.

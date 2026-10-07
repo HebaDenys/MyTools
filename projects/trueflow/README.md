@@ -206,3 +206,29 @@ may have only `error`, without `diagnostic`; a later I/O error can still leave a
 already completed first output as documented above. Without the flag, error
 stdout stays empty. Successful output behavior is unchanged. No extra file read
 capability or automatic persistence was added to MCP/API.
+
+
+## Locating malformed CSV/TSV
+
+The browser reports `CSV_UNCLOSED_QUOTE`, `CSV_UNEXPECTED_QUOTE`,
+`CSV_AFTER_QUOTE` and `CSV_WIDTH` with the source (A/B), logical record and
+physical line/column. Use **Export diagnostic locations** to save
+`trueflow-parse-diagnostic.json`, correct the source and rerun. Data exports stay
+blocked until the workflow succeeds; editing or clearing removes stale diagnostics.
+
+Locations are 1-based. CRLF is one line break; standalone CR and LF each count as
+one too, even inside quoted fields. Columns count Unicode code points, not UTF-16
+units, bytes, grapheme clusters or visual editor columns. A tab counts as one
+column. A leading UTF-8 BOM is ignored. CSV headers are logical record 1.
+
+An unclosed field points to its opening quote, an unexpected quote to that quote,
+text after a closing quote to the first invalid character, and width errors to
+the start of the offending logical record. Width diagnostics also contain expected
+and actual column counts. No automatic repair or silent row removal occurs.
+
+This versioned `mytools.trueflow.parse` diagnostic contains only fixed enum labels,
+numbers and nulls, not cell values, header names, file names or paths. Only the
+browser opts into parser metadata through `validationDiagnostic(error, true)`;
+CLI (including `--diagnostics-json`), MCP and HTTP keep their existing error-code
+responses. Their structured key/required-value diagnostics are unchanged. This
+addition does not locate JSON syntax, invalid headers, schema errors or size limits.

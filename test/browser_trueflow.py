@@ -110,6 +110,40 @@ with sync_playwright() as p:
     parse_diagnostic_text = Path(info.value.path()).read_text()
     parse_diagnostic = json.loads(parse_diagnostic_text)
     check('Parser diagnostic download is value-free', parse_diagnostic['format'] == 'mytools.trueflow.parse' and parse_diagnostic['record'] == 2 and parse_diagnostic['line'] == 2 and parse_diagnostic['column'] == 1 and 'broken' not in parse_diagnostic_text)
+    # Parser recovery: exact Unicode/TSV locations on B, localization and real exports.
+    page.locator('#clear').click()
+    page.locator('#input-a').fill('id,v\n1,ok')
+    page.locator('#format-a').select_option('csv')
+    page.locator('#format-b').select_option('tsv')
+    page.locator('#input-b').fill('id\tv\r\n1\t🙂"PRIVATE_CELL')
+    page.locator('#run').click()
+    with page.expect_download() as info:
+        page.locator('#export-validation').click()
+    parse_text = Path(info.value.path()).read_text()
+    location = json.loads(parse_text)
+    check('TSV B reports exact Unicode code-point column', location['source'] == 'b' and location['dataFormat'] == 'tsv' and [location['record'], location['line'], location['column']] == [2, 2, 4])
+    check('Parser diagnostics omit input values and preserve export blocking', 'PRIVATE_' not in parse_text and page.locator('#export-json').is_disabled() and not page.locator('#results').is_visible())
+    for language, title in [('en', 'Malformed'), ('es', 'Ubicación'), ('it', 'Posizione')]:
+        page.locator('#language').select_option(language)
+        check(f'Parser panel remains localized in {language}', title in page.locator('#validation-title').inner_text() and 'B' in page.locator('#validation-context').inner_text() and 'TSV' in page.locator('#validation-context').inner_text())
+    page.locator('#validation-issues').focus()
+    check('Parser table can receive keyboard focus', page.evaluate("document.activeElement.id") == 'validation-issues')
+    if args.screenshots:
+        target = Path(args.screenshots); target.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(target / 'TrueFlow-parser-desktop.png'), full_page=True)
+    page.set_viewport_size({'width': 390, 'height': 844})
+    check('Parser panel fits mobile without document overflow', page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'))
+    if args.screenshots:
+        page.screenshot(path=str(Path(args.screenshots) / 'TrueFlow-parser-mobile.png'), full_page=True)
+    page.set_viewport_size({'width': 1440, 'height': 1100})
+    page.locator('#input-b').fill('id\tv\n1\trepaired')
+    check('Repair clears stale parser metadata immediately', not page.locator('#validation-panel').is_visible() and page.locator('#export-validation').is_disabled())
+    page.locator('#run').click()
+    page.locator('#preview-source').select_option('b')
+    page.locator('#review').check()
+    with page.expect_download() as info:
+        page.locator('#export-json').click()
+    check('Repairing malformed TSV completes reviewed B export', json.loads(Path(info.value.path()).read_text()) == [{'id': '1', 'v': 'repaired'}])
     # Delayed file read: edits must supersede a pending import.
     page.locator('#clear').click()
     page.evaluate('''() => { window.originalRead = File.prototype.arrayBuffer; File.prototype.arrayBuffer = async function() { const data = await window.originalRead.call(this); return new Promise(resolve => { window.finishRead = () => resolve(data); }); }; }''')

@@ -18,7 +18,8 @@ function textLocation(text, index) {
       line++; column = 1;
     } else if (ch === '\n') { line++; column = 1; }
     else {
-      if (ch.codePointAt(0) > 0xffff) i++;
+      // Index the original string: text[i] contains only one UTF-16 unit.
+      if (text.codePointAt(i) > 0xffff) i++;
       column++;
     }
   }
@@ -91,6 +92,7 @@ function csvRecords(text, delimiter, source, dataFormat) {
 /** Strict quoted CSV; delimiters are explicit rather than guessed. All cells stay text. */
 export function parseCSV(input, delimiter = ',', source = 'input', dataFormat = 'csv') {
   if (!['input', 'a', 'b'].includes(source)) fail('INVALID_SOURCE');
+  if (!['csv', 'tsv'].includes(dataFormat)) fail('INVALID_FORMAT');
   const text = boundedText(input), parsed = csvRecords(text, delimiter, source, dataFormat), records = parsed.records;
   if (!records.length) fail('EMPTY_INPUT');
   const [columns, ...rows] = records;
