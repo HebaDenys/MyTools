@@ -3,6 +3,28 @@
 export const LIMITS = Object.freeze({ bytes: 5 * 1024 * 1024, rows: 50000, columns: 100, cells: 500000, steps: 30 });
 const encoder = new TextEncoder();
 const fail = (code, detail = '') => { throw new Error(`${code}${detail ? `: ${detail}` : ''}`); };
+const parseErrors = new WeakMap();
+function parseFail(code, detail, diagnostic) {
+  const error = new Error(`${code}${detail ? `: ${detail}` : ''}`);
+  parseErrors.set(error, { format: 'mytools.trueflow.parse', version: 1, ...diagnostic, code });
+  throw error;
+}
+function textLocation(text, index) {
+  let line = 1, column = 1;
+  for (let i = 0; i < index; i++) {
+    const ch = text[i];
+    if (ch === '\r') {
+      if (text[i + 1] === '\n' && i + 1 < index) i++;
+      line++; column = 1;
+    } else if (ch === '\n') { line++; column = 1; }
+    else {
+      // Index the original string: text[i] contains only one UTF-16 unit.
+      if (text.codePointAt(i) > 0xffff) i++;
+      column++;
+    }
+  }
+  return { line, column };
+}
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 function boundedText(text, limit = LIMITS.bytes) {
   if (typeof text !== 'string') fail('TEXT_REQUIRED');
@@ -22,11 +44,15 @@ function table(columns, rows, sourceRows = rows.map((_, i) => i + 2)) {
   if (sourceRows.length !== rows.length || sourceRows.some(n => !Number.isSafeInteger(n) || n < 1)) fail('INVALID_SOURCE_ROWS');
   return { columns, rows, sourceRows };
 }
-function csvRecords(text, delimiter) {
+function csvRecords(text, delimiter, source, dataFormat) {
   if (![',', ';', '\t'].includes(delimiter)) fail('INVALID_DELIMITER');
-  const records = []; let row = [], field = '', quoted = false, closed = false, started = false, cells = 0;
+  const records = [], starts = [0]; let row = [], field = '', quoted = false, closed = false, started = false, cells = 0, quoteStart = null;
+  const diagnostic = (record, index, expectedColumns = null, actualColumns = null) => {
+    const { line, column } = textLocation(text, index);
+    return { source, dataFormat, record, line, column, expectedColumns, actualColumns };
+  };
   const cell = () => {
-    row.push(field); field = ''; closed = false;
+    row.push(field); field = ''; closed = false; quoteStart = null;
     if (row.length > LIMITS.columns || ++cells > LIMITS.cells + LIMITS.columns) fail('TABLE_LIMIT');
   };
   const record = () => {
@@ -34,34 +60,48 @@ function csvRecords(text, delimiter) {
     if (records.length > LIMITS.rows + 1) fail('TABLE_LIMIT');
   };
   for (let i = 0; i < text.length; i++) {
-    const c = text[i];
+    const ch = text[i];
     if (quoted) {
-      if (c === '"') {
+      if (ch === '"') {
         if (text[i + 1] === '"') { field += '"'; i++; }
         else { quoted = false; closed = true; }
-      } else field += c;
+      } else field += ch;
       continue;
     }
-    if (c === delimiter) { cell(); started = true; }
-    else if (c === '\n' || c === '\r') { record(); if (c === '\r' && text[i + 1] === '\n') i++; }
-    else if (closed) fail('CSV_AFTER_QUOTE', `record ${records.length + 1}`);
-    else if (c === '"') {
-      if (field.length) fail('CSV_UNEXPECTED_QUOTE', `record ${records.length + 1}`);
-      quoted = true; started = true;
-    } else { field += c; started = true; }
+    if (ch === delimiter) { cell(); started = true; }
+    else if (ch === '\n' || ch === '\r') {
+      record();
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      starts.push(i + 1);
+    } else if (closed) {
+      const recordNumber = records.length + 1;
+      parseFail('CSV_AFTER_QUOTE', `record ${recordNumber}`, diagnostic(recordNumber, i));
+    } else if (ch === '"') {
+      const recordNumber = records.length + 1;
+      if (field.length) parseFail('CSV_UNEXPECTED_QUOTE', `record ${recordNumber}`, diagnostic(recordNumber, i));
+      quoted = true; started = true; quoteStart = i;
+    } else { field += ch; started = true; }
   }
-  if (quoted) fail('CSV_UNCLOSED_QUOTE');
+  if (quoted) {
+    const recordNumber = records.length + 1, index = quoteStart ?? Math.max(0, text.length - 1);
+    parseFail('CSV_UNCLOSED_QUOTE', '', diagnostic(recordNumber, index));
+  }
   if (started || row.length || closed) record();
-  return records;
+  return { records, starts };
 }
 /** Strict quoted CSV; delimiters are explicit rather than guessed. All cells stay text. */
-export function parseCSV(input, delimiter = ',') {
-  const records = csvRecords(boundedText(input), delimiter);
+export function parseCSV(input, delimiter = ',', source = 'input', dataFormat = 'csv') {
+  if (!['input', 'a', 'b'].includes(source)) fail('INVALID_SOURCE');
+  if (!['csv', 'tsv'].includes(dataFormat)) fail('INVALID_FORMAT');
+  const text = boundedText(input), parsed = csvRecords(text, delimiter, source, dataFormat), records = parsed.records;
   if (!records.length) fail('EMPTY_INPUT');
   const [columns, ...rows] = records;
   validColumns(columns);
   const bad = rows.findIndex(row => row.length !== columns.length);
-  if (bad !== -1) fail('CSV_WIDTH', `record ${bad + 2}`);
+  if (bad !== -1) {
+    const recordNumber = bad + 2, index = parsed.starts[bad + 1] ?? 0, { line, column } = textLocation(text, index);
+    parseFail('CSV_WIDTH', `record ${recordNumber}`, { source, dataFormat, record: recordNumber, line, column, expectedColumns: columns.length, actualColumns: rows[bad].length });
+  }
   return table(columns, rows);
 }
 /** Flat JSON records. Number lexemes stay exact text; no numeric round-trip. */
@@ -99,10 +139,10 @@ export function parseJSON(input) {
   }));
   return table(columns, rows, rows.map((_, i) => i + 1));
 }
-export function parseData(text, format = 'csv', delimiter = ',') {
+export function parseData(text, format = 'csv', delimiter = ',', source = 'input') {
   if (format === 'json') return parseJSON(text);
-  if (format === 'tsv') return parseCSV(text, '\t');
-  if (format === 'csv') return parseCSV(text, delimiter);
+  if (format === 'tsv') return parseCSV(text, '\t', source, 'tsv');
+  if (format === 'csv') return parseCSV(text, delimiter, source, 'csv');
   fail('INVALID_FORMAT');
 }
 function indices(data, columns) {
@@ -151,8 +191,8 @@ export const emptyRecipe = () => ({ format: 'mytools.trueflow.recipe', version: 
 // arbitrary Error properties, parser messages, cell values or header names.
 const validationErrors = new WeakMap();
 export const VALIDATION_ISSUE_LIMIT = 100;
-export function validationDiagnostic(error) {
-  const diagnostic = validationErrors.get(error);
+export function validationDiagnostic(error, includeParser = false) {
+  const diagnostic = validationErrors.get(error) ?? (includeParser === true ? parseErrors.get(error) : null);
   return diagnostic ? structuredClone(diagnostic) : null;
 }
 function assertValidRows(data, ids, check, source = 'input', step = null) {

@@ -21,10 +21,14 @@ larger count of utility pages. Fix regressions and unsafe exports first.
   exports. Null/falsy recipe columns are rejected and late failed recipe imports
   invalidate any intervening results.
 
+- v0.5.1: browser CSV/TSV syntax and row-width locations with exact Unicode
+  columns, safe diagnostic export and repair-to-export regression coverage.
+  CLI/MCP/HTTP parser-error contracts stay unchanged.
+
 ## Next milestone: make TrueFlow easier to trust on real archives
 
-1. Key/required-value conflict diagnostics are implemented. Next: extend useful
-   source-location guidance to parser/schema errors without echoing values.
+1. Key/required-value diagnostics and browser CSV/TSV parser locations are
+   implemented. Next: source guidance for schema/JSON errors without echoing values.
 2. Schema mapping is implemented. Next: improve guidance for complex mapping
    conflicts without guessing correspondences or silently dropping columns.
 3. Evaluate cancellable worker-based processing and bounded larger-file support.

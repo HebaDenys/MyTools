@@ -52,7 +52,7 @@ function translate() {
   $('compare-key').value = oldKey; renderSteps();
   if (mappingHeaders) renderMapping();
   if (result) renderResults();
-  if (diagnostic) renderValidation();
+  if (diagnostic) renderDiagnostic();
 }
 function drawTable(id, headers, rows) {
   const table = el('table'), head = el('thead'), hr = el('tr'), body = el('tbody');
@@ -84,7 +84,7 @@ function renderResults() {
 }
 function parseSource(id) {
   const format = $(`format-${id}`).value;
-  return parseData($(`input-${id}`).value, format === 'semicolon' ? 'csv' : format, format === 'semicolon' ? ';' : ',');
+  return parseData($(`input-${id}`).value, format === 'semicolon' ? 'csv' : format, format === 'semicolon' ? ';' : ',', id);
 }
 function analyze() {
   invalidate();
@@ -107,8 +107,8 @@ function analyze() {
     result = { schemaMapping: originalB && $('mapping-enabled').checked ? planSchemaMapping(originalA, originalB, mapping) : null, a: { ...a, stats: profile(a.data) }, b: b ? { ...b, stats: profile(b.data) } : null, comparison };
     renderResults(); message(t('ready'));
   } catch (error) {
-    invalidate(); diagnostic = validationDiagnostic(error);
-    if (diagnostic) renderValidation();
+    invalidate(); diagnostic = validationDiagnostic(error, true);
+    if (diagnostic) renderDiagnostic();
     else message(`${t('error')}: ${error.message}`, true);
   }
 }
@@ -122,16 +122,33 @@ function validationSummary() {
   const values = { source, first: first.firstRecord, record: first.record, columns: first.columns.join(', ') };
   return `${t('error')}: ${first.code} — ${template.replace(/\{([a-z]+)\}/g, (_, key) => values[key] ?? '')}`;
 }
-function renderValidation() {
+function renderDiagnostic() {
   if (!diagnostic) return;
   $('validation-panel').hidden = false; $('export-validation').disabled = false;
-  message(validationSummary(), true);
-  $('validation-context').textContent = `${t('validationSource')}: ${diagnostic.source.toUpperCase()} · ${t('validationCheck')}: ${t(diagnostic.check)} · ${t('step')}: ${diagnostic.step ?? t('validationComparison')}`;
-  $('validation-count').textContent = `${t('validationCount')}: ${diagnostic.totalIssues} · ${t('validationShown')}: ${diagnostic.issues.length}${diagnostic.truncated ? ` · ${t('validationTruncated')}` : ''}`;
-  drawTable('validation-issues', [t('validationReason'), t('record'), t('validationFirst'), t('validationColumns')], diagnostic.issues.map(i => [t(i.code), i.record, i.firstRecord, i.columns.join(', ')]));
+  const source = diagnostic.source === 'input' ? t('validationCurrent') : `${t('validationSource')} ${diagnostic.source.toUpperCase()}`;
+  if (diagnostic.format === 'mytools.trueflow.validation') {
+    $('validation-title').textContent = t('validationTitle');
+    document.querySelector('[data-i18n="validationHelp"]').textContent = t('validationHelp');
+    document.querySelector('[data-i18n="validationPrivacy"]').textContent = t('validationPrivacy');
+    message(validationSummary(), true);
+    $('validation-context').textContent = `${t('validationSource')}: ${diagnostic.source.toUpperCase()} · ${t('validationCheck')}: ${t(diagnostic.check)} · ${t('step')}: ${diagnostic.step ?? t('validationComparison')}`;
+    $('validation-count').textContent = `${t('validationCount')}: ${diagnostic.totalIssues} · ${t('validationShown')}: ${diagnostic.issues.length}${diagnostic.truncated ? ` · ${t('validationTruncated')}` : ''}`;
+    drawTable('validation-issues', [t('validationReason'), t('record'), t('validationFirst'), t('validationColumns')], diagnostic.issues.map(i => [t(i.code), i.record, i.firstRecord, i.columns.join(', ')]));
+    return;
+  }
+  $('validation-title').textContent = t('parseTitle');
+  document.querySelector('[data-i18n="validationHelp"]').textContent = t('parseHelp');
+  document.querySelector('[data-i18n="validationPrivacy"]').textContent = t('parsePrivacy');
+  const values = { source, record: diagnostic.record, line: diagnostic.line, column: diagnostic.column };
+  const summary = t('parseSummary').replace(/\{([a-z]+)\}/g, (_, key) => values[key] ?? '');
+  message(`${t('error')}: ${diagnostic.code} — ${summary}`, true);
+  $('validation-context').textContent = `${t('validationSource')}: ${diagnostic.source.toUpperCase()} · ${t('parseFormat')}: ${diagnostic.dataFormat.toUpperCase()}`;
+  const width = diagnostic.expectedColumns === null ? '' : ` · ${t('parseExpected')}: ${diagnostic.expectedColumns} · ${t('parseActual')}: ${diagnostic.actualColumns}`;
+  $('validation-count').textContent = `${t('record')}: ${diagnostic.record} · ${t('parseLine')}: ${diagnostic.line} · ${t('parseColumn')}: ${diagnostic.column}${width}`;
+  drawTable('validation-issues', [t('validationReason'), t('record'), t('parseLine'), t('parseColumn'), t('parseExpected'), t('parseActual')], [[diagnostic.code, diagnostic.record, diagnostic.line, diagnostic.column, diagnostic.expectedColumns, diagnostic.actualColumns]]);
 }
 $('export-validation').addEventListener('click', () => {
-  if (diagnostic) download(JSON.stringify(diagnostic, null, 2), 'trueflow-validation.json');
+  if (diagnostic) download(JSON.stringify(diagnostic, null, 2), diagnostic.format === 'mytools.trueflow.parse' ? 'trueflow-parse-diagnostic.json' : 'trueflow-validation.json');
 });
 function download(text, name, type = 'application/json') {
   const url = URL.createObjectURL(new Blob([text], { type })); const link = el('a');

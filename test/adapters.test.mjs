@@ -179,3 +179,27 @@ test('HTTP diagnostic failures still require authentication and do not expose pa
   const r = await http(port, '/v1/tools/trueflow_compare', { body, headers: { Authorization: '' } });
   assert.equal(r.status, 401); assert.deepEqual(r.body, { error: 'UNAUTHORIZED' });
 });
+
+test('real MCP and HTTP preserve CSV/TSV error contracts without browser-only parser metadata', async t => {
+  const fixtures = [
+    [{ text: 'PRIVATE_HEADER\n"PRIVATE_CELL' }, 'CSV_UNCLOSED_QUOTE'],
+    [{ text: 'PRIVATE_HEADER\n🙂"PRIVATE_CELL' }, 'CSV_UNEXPECTED_QUOTE: record 2'],
+    [{ text: 'PRIVATE_HEADER\n"🙂"PRIVATE_CELL' }, 'CSV_AFTER_QUOTE: record 2'],
+    [{ text: 'id\tPRIVATE_HEADER\r\nPRIVATE_CELL', format: 'tsv' }, 'CSV_WIDTH: record 2'],
+  ];
+  const input = [initialize, initialized, ...fixtures.map(([source], i) =>
+    rpc(i + 2, 'tools/call', { name: 'trueflow_profile', arguments: { source } }))]
+    .map(value => JSON.stringify(value) + '\n').join('');
+  const child = spawnSync(process.execPath, [mcp], { input, encoding: 'utf8', timeout: 10000 });
+  assert.equal(child.status, 0); assert.equal(child.stderr, '');
+  const replies = child.stdout.trim().split('\n').map(JSON.parse).slice(1);
+  assert.equal(replies.length, fixtures.length);
+  const { port } = await local(t);
+  for (const [i, [source, expected]] of fixtures.entries()) {
+    assert.deepEqual(replies[i].result, { content: [{ type: 'text', text: expected }], isError: true });
+    const response = await http(port, '/v1/tools/trueflow_profile', { body: JSON.stringify({ source }) });
+    assert.equal(response.status, 422); assert.deepEqual(response.body, { error: expected });
+    assert.doesNotMatch(JSON.stringify(response.body), /PRIVATE_|mytools.trueflow.parse/);
+  }
+  assert.doesNotMatch(child.stdout, /PRIVATE_|mytools.trueflow.parse/);
+});
